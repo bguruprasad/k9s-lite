@@ -21,7 +21,7 @@ table_bottom() { CURSOR=$(( ${#TABLE_ROWS[@]} - 1 )); }
 row_color() {
   case "$1" in
     *CrashLoopBackOff*|*Error*|*Failed*|*Evicted*|*ImagePull*) ROW_SGR=$'\e[31m' ;;
-    *Pending*|*ContainerCreating*|*Terminating*|*Init:*)       ROW_SGR=$'\e[33m' ;;
+    *Pending*|*ContainerCreating*|*Terminating*|*Init:*|*Warning*) ROW_SGR=$'\e[33m' ;;
     *Completed*)                                               ROW_SGR=$'\e[90m' ;;
     *Running*)                                                 ROW_SGR=$'\e[32m' ;;
     *)                                                         ROW_SGR="" ;;
@@ -76,7 +76,7 @@ table_draw() {
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"
   else
-    printf -v line ' d:desc y:yaml l:logs s:shell e:edit ^d:del ::cmd /:flt n:ns c:ctx q:quit'
+    printf -v line ' d:desc y:yaml v:events l:logs s:shell e:edit ^d:del ::cmd /:flt n:ns q:quit'
   fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'

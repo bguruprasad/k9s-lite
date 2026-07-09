@@ -11,8 +11,8 @@
 #
 # Keys: j/k/arrows/wheel move · g/G top/bottom · : command (:po :svc :deploy ...)
 #       / filter · n namespaces · c contexts · r refresh · 0 all-ns toggle · q quit
-#       d describe · y yaml · l logs (follow) · p previous logs · s shell
-#       e edit · Ctrl-D delete (asks to confirm)
+#       d describe · y yaml · v events for object · l logs (follow) · p previous logs
+#       s shell · e edit · Ctrl-D delete (asks to confirm) · :events sorted event list
 
 set -u
 
@@ -80,16 +80,27 @@ refresh() {
   fi
 }
 
-# --- line input on the footer row
+# --- line input on the footer row.
+# Reads raw char-by-char (no termios mode flip: switching to canonical mode loses
+# already-queued bytes on fast input/paste, and the leftovers fire as hotkeys).
 prompt_input() {
   REPLY_STR=""
+  local c
   printf '\e[%d;1H\e[0m\e[K%s' "$ROWS" "$1"
   printf '\e[?25h'
-  stty echo icanon 2>/dev/null || true
-  IFS= read -r REPLY_STR || REPLY_STR=""
-  stty -echo -icanon 2>/dev/null || true
+  while IFS= read -rsn1 c; do
+    case "$c" in
+      ''|$'\r'|$'\n') break ;;
+      $'\177'|$'\b')
+        if [[ -n $REPLY_STR ]]; then
+          REPLY_STR=${REPLY_STR%?}
+          printf '\b \b'
+        fi ;;
+      $'\e') REPLY_STR=""; break ;;   # Esc cancels
+      *) REPLY_STR+="$c"; printf '%s' "$c" ;;
+    esac
+  done
   printf '\e[?25l'
-  REPLY_STR=${REPLY_STR//$'\r'/}
 }
 
 # --- command mode: switch resource kind; kubectl validates, revert on error
@@ -219,6 +230,7 @@ dispatch() {
     c)        open_ctx_picker ;;
     d)        act_describe ;;
     y)        act_yaml ;;
+    v)        act_events ;;
     l)        act_logs ;;
     p)        act_logs_prev ;;
     s)        act_shell ;;

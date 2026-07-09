@@ -92,11 +92,15 @@ kube_fetch() {
     demo_data
     return 0
   fi
-  local out rc line first=1
+  local out rc line first=1 sort_arg=""
+  # events come back in random order by default — sort chronologically
+  case "$RESOURCE" in
+    events|event|ev|events.*) sort_arg=--sort-by=.metadata.creationTimestamp ;;
+  esac
   if [[ -n $CUR_NS ]]; then
-    out=$($KUBECTL_BIN get "$RESOURCE" -n "$CUR_NS" -o wide 2>&1)
+    out=$($KUBECTL_BIN get "$RESOURCE" -n "$CUR_NS" -o wide $sort_arg 2>&1)
   else
-    out=$($KUBECTL_BIN get "$RESOURCE" --all-namespaces -o wide 2>&1)
+    out=$($KUBECTL_BIN get "$RESOURCE" --all-namespaces -o wide $sort_arg 2>&1)
   fi
   rc=$?
   out=${out//$'\r'/}

@@ -95,6 +95,14 @@ act_edit() {
   run_fg $WINPTY $KUBECTL_BIN edit "$RESOURCE/$SEL_NAME" -n "$SEL_NS"
 }
 
+# events for the selected object only, oldest first (newest at the bottom)
+act_events() {
+  act_guard || return 0
+  run_pager $KUBECTL_BIN get events -n "$SEL_NS" \
+    --field-selector "involvedObject.name=$SEL_NAME" \
+    --sort-by=.metadata.creationTimestamp -o wide
+}
+
 act_delete() {
   act_guard || return 0
   prompt_input "delete ${RESOURCE}/${SEL_NAME} in ${SEL_NS}? type y to confirm: "
