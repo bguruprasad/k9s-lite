@@ -36,6 +36,8 @@ dispatch() {
     G|END)    table_bottom ;;
     PGDN)     table_move $(( ROWS - 3 )) ;;
     PGUP)     table_move $(( -(ROWS - 3) )) ;;
+    WHEEL_DOWN) table_move 3 ;;
+    WHEEL_UP)   table_move -3 ;;
   esac
 }
 
