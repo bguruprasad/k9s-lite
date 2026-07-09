@@ -11,6 +11,13 @@ CURSOR=0
 SCROLL=0
 ROW_SGR=""
 
+# box-drawing characters (K9L_ASCII=1 for plain +---+ on odd terminals)
+if [[ -n ${K9L_ASCII:-} ]]; then
+  BOX_H='-'; BOX_V='|'; BOX_TL='+'; BOX_TR='+'; BOX_BL='+'; BOX_BR='+'
+else
+  BOX_H='─'; BOX_V='│'; BOX_TL='┌'; BOX_TR='┐'; BOX_BL='└'; BOX_BR='┘'
+fi
+
 table_move() {
   CURSOR=$(( CURSOR + $1 ))   # clamped in table_draw
 }
@@ -29,13 +36,21 @@ row_color() {
   esac
 }
 
+# box_rule <n> — n box-horizontal chars into $RULE (string ops only, no forks)
+box_rule() {
+  printf -v RULE '%*s' "$1" ''
+  RULE=${RULE// /$BOX_H}
+}
+
 # Full redraw, built as one string and printed once (single write = no flicker).
 # \e[K per line + \e[J at the end instead of \e[2J avoids full-screen flash.
 table_draw() {
   local msg_lines=0 info_n=${#INFO_LINES[@]}
   [[ -n $TABLE_MSG ]] && msg_lines=1
-  # info block, title, column header, [msg], footer
-  local body_h=$(( ROWS - 3 - msg_lines - info_n ))
+  local inner=$(( COLS - 2 ))
+  (( inner < 10 )) && inner=10
+  # info block, top border(title), column header, [msg], bottom border, footer
+  local body_h=$(( ROWS - 4 - msg_lines - info_n ))
   (( body_h < 1 )) && body_h=1
   local n=${#TABLE_ROWS[@]}
 
@@ -46,39 +61,55 @@ table_draw() {
   (( CURSOR >= SCROLL + body_h )) && SCROLL=$(( CURSOR - body_h + 1 ))
   (( SCROLL < 0 )) && SCROLL=0
 
-  local buf=$'\e[H' line i row
+  local buf=$'\e[H' line i row title tlen left right
 
   for (( i = 0; i < info_n; i++ )); do
     pad "${INFO_LINES[i]}"
     buf+=$'\e[36m'"$PADDED"$'\e[0m\r\n'
   done
 
-  printf -v line ' k9s-lite  %s  (%d)' "$TABLE_TITLE" "$n"
-  pad "$line"
-  buf+=$'\e[7m'"$PADDED"$'\e[27m\r\n'
+  # top border with the title centered inside the rule, bold
+  title=" ${TABLE_TITLE}  (${n}) "
+  tlen=${#title}
+  if (( tlen > inner )); then
+    title=${title:0:inner}
+    tlen=$inner
+  fi
+  left=$(( (inner - tlen) / 2 ))
+  right=$(( inner - tlen - left ))
+  box_rule "$left";  line="${BOX_TL}${RULE}"
+  box_rule "$right"
+  buf+="${line}"$'\e[1m'"${title}"$'\e[22m'"${RULE}${BOX_TR}"$'\e[K\r\n'
 
-  pad "  $TABLE_HEADER"
-  buf+=$'\e[1m'"$PADDED"$'\e[22m\r\n'
+  # column header (inside the box)
+  printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_HEADER"
+  buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
 
   if (( msg_lines )); then
-    pad "  $TABLE_MSG"
-    buf+=$'\e[31m'"$PADDED"$'\e[0m\r\n'
+    printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_MSG"
+    buf+="${BOX_V}"$'\e[31m'"$line"$'\e[0m'"${BOX_V}"$'\e[K\r\n'
   fi
 
   for (( i = SCROLL; i < SCROLL + body_h; i++ )); do
     if (( i < n )); then
       row="${TABLE_ROWS[i]}"
       if (( i == CURSOR )); then
-        pad "> $row"
-        buf+=$'\e[7m'"$PADDED"$'\e[27m'
+        printf -v line '%-*.*s' "$inner" "$inner" ">${row}"
+        buf+="${BOX_V}"$'\e[7m'"$line"$'\e[27m'"${BOX_V}"
       else
         row_color "$row"
-        pad "  $row"
-        buf+="${ROW_SGR}${PADDED}"$'\e[0m'
+        printf -v line '%-*.*s' "$inner" "$inner" " ${row}"
+        buf+="${BOX_V}${ROW_SGR}${line}"$'\e[0m'"${BOX_V}"
       fi
+    else
+      printf -v line '%-*.*s' "$inner" "$inner" ""
+      buf+="${BOX_V}${line}${BOX_V}"
     fi
     buf+=$'\e[K\r\n'
   done
+
+  box_rule "$inner"
+  buf+="${BOX_BL}${RULE}${BOX_BR}"$'\e[K\r\n'
 
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"

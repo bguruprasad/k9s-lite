@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.6.0"
+K9L_VERSION="0.7.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -86,7 +86,7 @@ refresh() {
     shopt -u nocasematch
     if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
   fi
-  TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}${FILTER:+  /$FILTER}"
+  TABLE_TITLE="ns:${CUR_NS:-all} | ${RESOURCE}${FILTER:+ | /$FILTER}"
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"
   elif (( ${#TABLE_ROWS[@]} == 0 )); then
@@ -127,7 +127,7 @@ switch_resource() {
   refresh
   if [[ -n $KUBE_ERR ]]; then
     RESOURCE=$old   # keep previous view; error line stays visible
-    TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}${FILTER:+  /$FILTER}"
+    TABLE_TITLE="ns:${CUR_NS:-all} | ${RESOURCE}${FILTER:+ | /$FILTER}"
   fi
 }
 

@@ -9,17 +9,19 @@ containers) where the real k9s isn't available.
  Context:  kind-k9s-lite         <d> describe    <l> logs       <:>  resource
  Cluster:  kind-k9s-lite         <y> yaml        <s> shell      </>  filter
  User:     kind-k9s-lite         <v> events      <e> edit       <n>  namespace
- Ver:      v0.6.0 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
- k9s-lite  kind-k9s-lite  ns:demo  pods  (8)
-   NAME                   READY   STATUS             RESTARTS      AGE
- > api-748ffb4cd6-mnr6t   1/1     Running            0             97m
-   api-748ffb4cd6-wczk7   1/1     Running            0             97m
-   crasher                0/1     CrashLoopBackOff   22 (2m ago)   97m
-   migrate-tbwnn          0/1     Completed          0             97m
-   stuck-pending          0/1     Pending            0             97m
-   web-6bcd64c5d4-6qgvv   1/1     Running            0             97m
- r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter
+ Ver:      v0.7.0 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
+┌────────────────────────── ns:demo | pods  (8) ───────────────────────────┐
+│ NAME                   READY   STATUS             RESTARTS      AGE      │
+│>api-748ffb4cd6-mnr6t   1/1     Running            0             97m      │
+│ api-748ffb4cd6-wczk7   1/1     Running            0             97m      │
+│ crasher                0/1     CrashLoopBackOff   22 (2m ago)   97m      │
+│ migrate-tbwnn          0/1     Completed          0             97m      │
+│ stuck-pending          0/1     Pending            0             97m      │
+│ web-6bcd64c5d4-6qgvv   1/1     Running            0             97m      │
+└──────────────────────────────────────────────────────────────────────────┘
+ a:resources  r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter
 ```
+Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box drawing.
 
 ## Why
 
