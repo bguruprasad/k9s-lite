@@ -9,7 +9,7 @@ containers) where the real k9s isn't available.
  Context:  kind-k9s-lite         <d> describe    <l> logs       <:>  resource
  Cluster:  kind-k9s-lite         <y> yaml        <s> shell      </>  filter
  User:     kind-k9s-lite         <v> events      <e> edit       <n>  namespace
- Ver:      v0.5.0 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
+ Ver:      v0.6.0 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
  k9s-lite  kind-k9s-lite  ns:demo  pods  (8)
    NAME                   READY   STATUS             RESTARTS      AGE
  > api-748ffb4cd6-mnr6t   1/1     Running            0             97m
@@ -63,7 +63,8 @@ K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
 |-----|--------|
 | `j`/`k`, arrows, mouse wheel | move cursor |
 | `g` / `G`, PgUp / PgDn | top / bottom / page |
-| `:` | command mode — switch resource: `:po` `:svc` `:deploy` `:events` `:routes` … any kind or kubectl shortname |
+| `:` | command mode — switch resource: `:po` `:svc` `:deploy` `:sts` `:cm` `:secret` `:events` `:routes` … any kind or kubectl shortname |
+| `a` | resource browser — pick from every kind the cluster supports (`kubectl api-resources`, CRDs included) |
 | `/` | filter rows (case-insensitive); `Esc` clears |
 | `d` | describe (pager) |
 | `y` | YAML (pager) |

@@ -10,7 +10,8 @@
 #   K9L_KUBECTL=oc ...            # drive OpenShift's oc instead of kubectl
 #
 # Keys: j/k/arrows/wheel move · g/G top/bottom · : command (:po :svc :deploy ...)
-#       / filter · n namespaces · c contexts · r refresh · 0 all-ns toggle · q quit
+#       a resource browser (all api-resources) · / filter · n namespaces · c contexts
+#       r refresh · 0 all-ns toggle · q quit
 #       d describe · y yaml · v events for object · l logs (follow) · p previous logs
 #       s shell · e edit · Ctrl-D delete (asks to confirm) · :events sorted event list
 
@@ -22,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.5.0"
+K9L_VERSION="0.6.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -118,7 +119,19 @@ prompt_input() {
   printf '\e[?25l'
 }
 
-# --- command mode: switch resource kind; kubectl validates, revert on error
+# switch resource kind; kubectl validates, revert to previous view on error
+switch_resource() {
+  local old=$RESOURCE
+  RESOURCE=$1
+  CURSOR=0; SCROLL=0
+  refresh
+  if [[ -n $KUBE_ERR ]]; then
+    RESOURCE=$old   # keep previous view; error line stays visible
+    TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}${FILTER:+  /$FILTER}"
+  fi
+}
+
+# --- command mode
 cmd_mode() {
   prompt_input ":"
   local input=${REPLY_STR// /}
@@ -127,15 +140,9 @@ cmd_mode() {
     q|quit)            RUNNING=0; return ;;
     ns|namespaces|projects) open_ns_picker; return ;;
     ctx|contexts)      open_ctx_picker; return ;;
+    res|api|aliases)   open_res_picker; return ;;
   esac
-  local old=$RESOURCE
-  RESOURCE=$input
-  CURSOR=0; SCROLL=0
-  refresh
-  if [[ -n $KUBE_ERR ]]; then
-    RESOURCE=$old   # keep previous view; error line stays visible
-    TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}${FILTER:+  /$FILTER}"
-  fi
+  switch_resource "$input"
 }
 
 filter_mode() {
@@ -175,6 +182,17 @@ open_ns_picker() {
   picker_enter ns "select namespace   (current: ${CUR_NS:-all})" NAMESPACE "$CUR_NS"
 }
 
+open_res_picker() {
+  TABLE_MSG="discovering api resources..."
+  table_draw
+  if ! kube_api_resources; then
+    TABLE_MSG="ERROR: $KUBE_ERR"
+    return
+  fi
+  if (( ${#RES_LIST[@]} )); then TABLE_ROWS=("${RES_LIST[@]}"); else TABLE_ROWS=(); fi
+  picker_enter res "select resource   (current: $RESOURCE)" RESOURCE "$RESOURCE"
+}
+
 open_ctx_picker() {
   if ! kube_contexts; then
     TABLE_MSG="ERROR: $KUBE_ERR"
@@ -184,10 +202,13 @@ open_ctx_picker() {
   picker_enter ctx "select context   (current: $CUR_CTX)" CONTEXT "$CUR_CTX"
 }
 
+PENDING_RES=""
+
 picker_apply() { # $1 selected value
   [[ -z $1 ]] && return
   case "$PICKER_KIND" in
     ns)  CUR_NS=$1 ;;
+    res) PENDING_RES=$1 ;;   # applied by picker_close so revert-on-error works
     ctx)
       if kube_use_context "$1"; then
         CUR_CTX=$1
@@ -203,7 +224,13 @@ picker_close() {
   PICKER_KIND=""
   TABLE_FOOT=""
   CURSOR=0; SCROLL=0
-  refresh
+  if [[ -n $PENDING_RES ]]; then
+    local r=$PENDING_RES
+    PENDING_RES=""
+    switch_resource "$r"
+  else
+    refresh
+  fi
 }
 
 dispatch_picker() {
@@ -245,6 +272,7 @@ dispatch() {
     r|R)      refresh ;;
     n)        open_ns_picker ;;
     c)        open_ctx_picker ;;
+    a)        open_res_picker ;;
     d)        act_describe ;;
     y)        act_yaml ;;
     v)        act_events ;;

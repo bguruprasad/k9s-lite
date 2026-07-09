@@ -32,6 +32,34 @@ kube_ctx_namespace() {
   CUR_NS=$ns
 }
 
+# All listable resource kinds into RES_LIST (cached per session — API discovery
+# is a slow multi-request operation). Returns 1 + KUBE_ERR on failure.
+RES_CACHE=""
+kube_api_resources() {
+  RES_LIST=()
+  if [[ -n ${K9L_DEMO:-} ]]; then
+    RES_LIST=(configmaps deployments pods secrets services statefulsets)
+    return 0
+  fi
+  local out rc line
+  if [[ -n $RES_CACHE ]]; then
+    out=$RES_CACHE
+  else
+    out=$($KUBECTL_BIN api-resources --verbs=list --no-headers -o name 2>&1)
+    rc=$?
+    out=${out//$'\r'/}
+    if (( rc != 0 )); then
+      KUBE_ERR=${out%%$'\n'*}
+      return 1
+    fi
+    RES_CACHE=$out
+  fi
+  while IFS= read -r line; do
+    [[ -n $line ]] && RES_LIST+=("$line")
+  done <<< "$out"
+  return 0
+}
+
 # Cluster/user of the current context + server version, for the header block.
 # Cached by the caller (refetched only on context switch); short timeout so a
 # dead VPN doesn't hang startup.

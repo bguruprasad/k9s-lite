@@ -80,6 +80,35 @@ spec:
       resources:
         requests: { memory: "512Gi" }
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: demo
+spec:
+  clusterIP: None
+  selector: { app: db }
+  ports: [{ port: 5432 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: demo
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels: { app: db }
+  template:
+    metadata:
+      labels: { app: db }
+    spec:
+      containers:
+        - name: db
+          image: busybox
+          command: ["sleep", "infinity"]
+---
 # Completed job
 apiVersion: batch/v1
 kind: Job
