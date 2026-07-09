@@ -4,6 +4,7 @@
 TABLE_TITLE=""
 TABLE_HEADER=""
 TABLE_ROWS=()
+TABLE_MSG=""       # rendered in red under the header when set (errors, empty list)
 CURSOR=0
 SCROLL=0
 ROW_SGR=""
@@ -29,7 +30,9 @@ row_color() {
 # Full redraw, built as one string and printed once (single write = no flicker).
 # \e[K per line + \e[J at the end instead of \e[2J avoids full-screen flash.
 table_draw() {
-  local body_h=$(( ROWS - 3 ))          # title, column header, footer
+  local msg_lines=0
+  [[ -n $TABLE_MSG ]] && msg_lines=1
+  local body_h=$(( ROWS - 3 - msg_lines ))   # title, column header, [msg], footer
   (( body_h < 1 )) && body_h=1
   local n=${#TABLE_ROWS[@]}
 
@@ -49,6 +52,11 @@ table_draw() {
   pad "  $TABLE_HEADER"
   buf+=$'\e[1m'"$PADDED"$'\e[22m\r\n'
 
+  if (( msg_lines )); then
+    pad "  $TABLE_MSG"
+    buf+=$'\e[31m'"$PADDED"$'\e[0m\r\n'
+  fi
+
   for (( i = SCROLL; i < SCROLL + body_h; i++ )); do
     if (( i < n )); then
       row="${TABLE_ROWS[i]}"
@@ -64,7 +72,7 @@ table_draw() {
     buf+=$'\e[K\r\n'
   done
 
-  printf -v line ' j/k:move  g/G:top/bottom  q:quit  [%dx%d]' "$COLS" "$ROWS"
+  printf -v line ' j/k:move  g/G:top/btm  r:refresh  0:ns-toggle  q:quit  [%dx%d]' "$COLS" "$ROWS"
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'
 
