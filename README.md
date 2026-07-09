@@ -69,7 +69,7 @@ K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
 | `d` | describe (pager) |
 | `y` | YAML (pager) |
 | `v` | events for the selected object, oldest→newest |
-| `l` | logs, follow mode — `Ctrl-C` returns to the table |
+| `l` | logs, live follow in `less +F` — `Ctrl-C` stops following (scroll/search), `q` returns |
 | `p` | previous-container logs (crash loops) |
 | `s` | shell into pod (bash if present, else sh) |
 | `e` | `kubectl edit` |
@@ -96,7 +96,9 @@ routes included), sorting/filtering of events uses `--sort-by`. The UI is raw
 ANSI escapes with a full redraw per tick; the event loop is a single
 `read -t <refresh>` — the timeout doubles as the polling timer. Interactive
 actions (logs, exec, edit, pagers) suspend the alt screen, hand the real
-terminal to the child, and restore raw mode after.
+terminal to the child, and restore raw mode after. Pager-based views (describe,
+yaml, logs) leave no trace in your shell's scrollback; `s` (exec) and `e` (edit)
+deliberately run on the normal screen so your session transcript survives.
 
 See [PLAN.md](PLAN.md) for the full design and milestone history.
 
