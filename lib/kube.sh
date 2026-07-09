@@ -18,6 +18,40 @@ kube_init() {
   [[ -z $CUR_CTX ]] && CUR_CTX="?"
 }
 
+# Resolve namespace from the kubeconfig context (what `kubectl config set-context
+# --current --namespace=X` sets); falls back to "default".
+kube_ctx_namespace() {
+  local ns
+  ns=$($KUBECTL_BIN config view --minify -o 'jsonpath={..namespace}' 2>/dev/null) || ns=""
+  ns=${ns//$'\r'/}
+  [[ -z $ns ]] && ns=default
+  CUR_NS=$ns
+}
+
+# List namespace names into NS_LIST. Returns 1 + KUBE_ERR on failure.
+kube_namespaces() {
+  NS_LIST=()
+  if [[ -n ${K9L_DEMO:-} ]]; then
+    NS_LIST=(default demo demo-batch kube-system)
+    return 0
+  fi
+  local out rc line res=namespaces
+  # under oc, projects list only what your RBAC lets you see; namespaces may be Forbidden
+  case "${KUBECTL_BIN##*/}" in oc|oc.exe) res=projects ;; esac
+  out=$($KUBECTL_BIN get "$res" --no-headers -o custom-columns=NAME:.metadata.name 2>&1)
+  rc=$?
+  out=${out//$'\r'/}
+  if (( rc != 0 )); then
+    KUBE_ERR=${out%%$'\n'*}
+    return 1
+  fi
+  while IFS= read -r line; do
+    line=${line%% *}
+    [[ -n $line ]] && NS_LIST+=("$line")
+  done <<< "$out"
+  return 0
+}
+
 # Fetch RESOURCE into TABLE_HEADER/TABLE_ROWS.
 # On failure: keep the previous rows on screen, set KUBE_ERR, return 1.
 # Always strip \r — kubectl on Windows can emit CRLF.

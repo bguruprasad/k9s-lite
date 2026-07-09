@@ -5,6 +5,7 @@ TABLE_TITLE=""
 TABLE_HEADER=""
 TABLE_ROWS=()
 TABLE_MSG=""       # rendered in red under the header when set (errors, empty list)
+TABLE_FOOT=""      # overrides the default footer hint when set (picker mode)
 CURSOR=0
 SCROLL=0
 ROW_SGR=""
@@ -72,7 +73,11 @@ table_draw() {
     buf+=$'\e[K\r\n'
   done
 
-  printf -v line ' j/k:move  g/G:top/btm  r:refresh  0:ns-toggle  q:quit  [%dx%d]' "$COLS" "$ROWS"
+  if [[ -n $TABLE_FOOT ]]; then
+    line=" $TABLE_FOOT"
+  else
+    printf -v line ' j/k:move  g/G:top/btm  r:refresh  n:namespace  0:all-ns  q:quit  [%dx%d]' "$COLS" "$ROWS"
+  fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'
 

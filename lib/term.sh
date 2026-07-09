@@ -56,7 +56,8 @@ key_read() {
   IFS= read -rsn1 -t "$t" c || return 1
 
   if [[ $c != $'\e' ]]; then
-    if [[ -z $c ]]; then KEY=ENTER; else KEY=$c; fi
+    # Enter arrives as NL (read delimiter -> empty) or CR depending on tty mode
+    if [[ -z $c || $c == $'\r' ]]; then KEY=ENTER; else KEY=$c; fi
     return 0
   fi
 
