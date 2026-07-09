@@ -69,7 +69,7 @@ table_draw() {
   done
 
   # top border with the title centered inside the rule, bold
-  title=" ${TABLE_TITLE}  (${n}) "
+  title=" ${TABLE_TITLE} (${n}) "
   tlen=${#title}
   if (( tlen > inner )); then
     title=${title:0:inner}
