@@ -11,6 +11,8 @@
 #
 # Keys: j/k/arrows/wheel move · g/G top/bottom · : command (:po :svc :deploy ...)
 #       / filter · n namespaces · c contexts · r refresh · 0 all-ns toggle · q quit
+#       d describe · y yaml · l logs (follow) · p previous logs · s shell
+#       e edit · Ctrl-D delete (asks to confirm)
 
 set -u
 
@@ -18,6 +20,7 @@ K9L_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$K9L_ROOT/lib/term.sh"
 source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
+source "$K9L_ROOT/lib/actions.sh"
 
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
@@ -28,7 +31,7 @@ FILTER=""
 ARG_NS=""
 
 usage() {
-  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 parse_args() {
@@ -214,6 +217,13 @@ dispatch() {
     r|R)      refresh ;;
     n)        open_ns_picker ;;
     c)        open_ctx_picker ;;
+    d)        act_describe ;;
+    y)        act_yaml ;;
+    l)        act_logs ;;
+    p)        act_logs_prev ;;
+    s)        act_shell ;;
+    e)        act_edit ;;
+    $'\004')  act_delete ;;    # Ctrl-D
     ESC)      [[ -n $FILTER ]] && { FILTER=""; CURSOR=0; SCROLL=0; refresh; } ;;
     0)        # explicit all-namespaces toggle (needs cluster-wide list RBAC)
       if [[ -n $CUR_NS ]]; then LAST_NS=$CUR_NS; CUR_NS=""; else CUR_NS=${LAST_NS:-default}; fi
