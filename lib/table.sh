@@ -3,6 +3,7 @@
 
 TABLE_TITLE=""
 TABLE_HEADER=""
+INFO_LINES=()      # k9s-style header block (context/cluster/user/ver + key map)
 TABLE_ROWS=()
 TABLE_MSG=""       # rendered in red under the header when set (errors, empty list)
 TABLE_FOOT=""      # overrides the default footer hint when set (picker mode)
@@ -31,9 +32,10 @@ row_color() {
 # Full redraw, built as one string and printed once (single write = no flicker).
 # \e[K per line + \e[J at the end instead of \e[2J avoids full-screen flash.
 table_draw() {
-  local msg_lines=0
+  local msg_lines=0 info_n=${#INFO_LINES[@]}
   [[ -n $TABLE_MSG ]] && msg_lines=1
-  local body_h=$(( ROWS - 3 - msg_lines ))   # title, column header, [msg], footer
+  # info block, title, column header, [msg], footer
+  local body_h=$(( ROWS - 3 - msg_lines - info_n ))
   (( body_h < 1 )) && body_h=1
   local n=${#TABLE_ROWS[@]}
 
@@ -45,6 +47,11 @@ table_draw() {
   (( SCROLL < 0 )) && SCROLL=0
 
   local buf=$'\e[H' line i row
+
+  for (( i = 0; i < info_n; i++ )); do
+    pad "${INFO_LINES[i]}"
+    buf+=$'\e[36m'"$PADDED"$'\e[0m\r\n'
+  done
 
   printf -v line ' k9s-lite  %s  (%d)' "$TABLE_TITLE" "$n"
   pad "$line"
@@ -76,7 +83,7 @@ table_draw() {
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"
   else
-    printf -v line ' d:desc y:yaml v:events l:logs s:shell e:edit ^d:del ::cmd /:flt n:ns q:quit'
+    printf -v line ' r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
   fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'

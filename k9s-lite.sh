@@ -22,6 +22,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
+K9L_VERSION="0.5.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -56,6 +57,20 @@ demo_data() {
       "demo-app-$i-7d4b9c$i" "1/1" "${statuses[i % 10]}" "$(( i % 5 ))" "${i}h"
     TABLE_ROWS+=("$line")
   done
+}
+
+# k9s-style header block: cluster identity on the left, key map on the right
+build_info() {
+  INFO_LINES=()
+  local l
+  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "Context:" "$CUR_CTX"  "<d> describe"  "<l> logs"   "<:>  resource"
+  INFO_LINES+=("$l")
+  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "Cluster:" "$CUR_CLUSTER" "<y> yaml"   "<s> shell"  "</>  filter"
+  INFO_LINES+=("$l")
+  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "User:" "$CUR_USER" "<v> events"      "<e> edit"   "<n>  namespace"
+  INFO_LINES+=("$l")
+  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "Ver:" "v$K9L_VERSION (k8s $K8S_VER)" "<p> prev logs" "<^d> delete" "<q>  quit"
+  INFO_LINES+=("$l")
 }
 
 # fetch + filter + derive title/message; never crashes the loop on kubectl failure
@@ -177,6 +192,8 @@ picker_apply() { # $1 selected value
       if kube_use_context "$1"; then
         CUR_CTX=$1
         kube_ctx_namespace   # namespace follows the new context
+        kube_cluster_info
+        build_info
       fi ;;
   esac
 }
@@ -253,6 +270,8 @@ main() {
   else
     kube_ctx_namespace
   fi
+  kube_cluster_info
+  build_info
   refresh
   table_draw
   while (( RUNNING )); do

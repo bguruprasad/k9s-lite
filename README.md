@@ -1,0 +1,125 @@
+# k9s-lite
+
+A [k9s](https://k9scli.io/)-style terminal UI for Kubernetes in **pure Bash + kubectl**.
+No Go binary, no tview/tcell, no jq — nothing to install. Built for locked-down
+environments (corporate Windows machines with only Git Bash, jump hosts, minimal
+containers) where the real k9s isn't available.
+
+```
+ Context:  kind-k9s-lite         <d> describe    <l> logs       <:>  resource
+ Cluster:  kind-k9s-lite         <y> yaml        <s> shell      </>  filter
+ User:     kind-k9s-lite         <v> events      <e> edit       <n>  namespace
+ Ver:      v0.5.0 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
+ k9s-lite  kind-k9s-lite  ns:demo  pods  (8)
+   NAME                   READY   STATUS             RESTARTS      AGE
+ > api-748ffb4cd6-mnr6t   1/1     Running            0             97m
+   api-748ffb4cd6-wczk7   1/1     Running            0             97m
+   crasher                0/1     CrashLoopBackOff   22 (2m ago)   97m
+   migrate-tbwnn          0/1     Completed          0             97m
+   stuck-pending          0/1     Pending            0             97m
+   web-6bcd64c5d4-6qgvv   1/1     Running            0             97m
+ r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter
+```
+
+## Why
+
+- **Zero dependencies** beyond `bash` (3.2+), `kubectl`, and the coreutils that ship
+  with Git Bash / any Linux / macOS. kubectl does all parsing and auth — including
+  corporate SSO/OIDC setups that are painful to reimplement.
+- **RBAC-friendly**: designed for users who can only see specific namespaces.
+  Nothing requires cluster-wide permissions; when listing namespaces is Forbidden,
+  you type the namespace name instead.
+- **OpenShift-aware**: run it with `K9L_KUBECTL=oc` — `:routes` works via API
+  discovery, and the namespace picker uses RBAC-filtered `projects`.
+
+## Requirements
+
+- bash 3.2+ (macOS system bash works; Git Bash on Windows ships 5.x)
+- `kubectl` (or `oc`) on PATH, configured with a kubeconfig
+- On Windows/Git Bash: `winpty` for `exec`/`edit` (bundled with Git for Windows)
+
+## Install
+
+```sh
+git clone <repo-url> && cd k9s-lite
+bash k9s-lite.sh
+```
+
+Or copy `k9s-lite.sh` + the `lib/` directory to any box — that's the whole program.
+
+## Usage
+
+```sh
+bash k9s-lite.sh                     # namespace from kubeconfig context, else "default"
+bash k9s-lite.sh -n my-namespace     # start in a specific namespace
+K9L_KUBECTL=oc bash k9s-lite.sh      # OpenShift
+K9L_REFRESH=5 bash k9s-lite.sh       # slower refresh (default 2s) for slow VPNs
+K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
+```
+
+## Keys
+
+| Key | Action |
+|-----|--------|
+| `j`/`k`, arrows, mouse wheel | move cursor |
+| `g` / `G`, PgUp / PgDn | top / bottom / page |
+| `:` | command mode — switch resource: `:po` `:svc` `:deploy` `:events` `:routes` … any kind or kubectl shortname |
+| `/` | filter rows (case-insensitive); `Esc` clears |
+| `d` | describe (pager) |
+| `y` | YAML (pager) |
+| `v` | events for the selected object, oldest→newest |
+| `l` | logs, follow mode — `Ctrl-C` returns to the table |
+| `p` | previous-container logs (crash loops) |
+| `s` | shell into pod (bash if present, else sh) |
+| `e` | `kubectl edit` |
+| `Ctrl-D` | delete (asks for confirmation) |
+| `n` | namespace picker (typed entry if listing is Forbidden) |
+| `c` | context picker (switches kubeconfig current-context) |
+| `0` | toggle all-namespaces (needs cluster-wide list RBAC) |
+| `r` | refresh now |
+| `q` | quit / cancel |
+
+## Namespace resolution
+
+1. `--namespace <ns>` argument, if given
+2. the namespace set on your current kubeconfig context
+3. `default`
+
+The view is locked to one namespace unless you explicitly toggle `0`.
+
+## Design
+
+kubectl is the parser: lists are `kubectl get -o wide`, discovery is implicit
+(any resource kind kubectl knows works in `:` command mode — CRDs and OpenShift
+routes included), sorting/filtering of events uses `--sort-by`. The UI is raw
+ANSI escapes with a full redraw per tick; the event loop is a single
+`read -t <refresh>` — the timeout doubles as the polling timer. Interactive
+actions (logs, exec, edit, pagers) suspend the alt screen, hand the real
+terminal to the child, and restore raw mode after.
+
+See [PLAN.md](PLAN.md) for the full design and milestone history.
+
+### Windows / Git Bash specifics
+
+- Interactive kubectl (`exec -it`, `edit`) is wrapped with `winpty` automatically
+  under mintty.
+- All kubectl output is stripped of `\r`; the repo enforces LF endings.
+- Terminal size is polled every tick (mintty doesn't deliver SIGWINCH to bash).
+- No subshells in the render loop — process forks are expensive under Git Bash.
+
+## Development
+
+Local test cluster (kind on podman or docker):
+
+```sh
+kind create cluster --name k9s-lite          # KIND_EXPERIMENTAL_PROVIDER=podman if using podman
+kubectl apply -f hack/sample-resources.yaml  # healthy/crashing/pending pods, jobs, services…
+bash k9s-lite.sh -n demo
+```
+
+Tests drive the real TUI in a pseudo-terminal (`script(1)`), feed it key bytes,
+and assert on the rendered frames — see PLAN.md.
+
+## License
+
+TBD.

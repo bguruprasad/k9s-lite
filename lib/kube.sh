@@ -32,6 +32,29 @@ kube_ctx_namespace() {
   CUR_NS=$ns
 }
 
+# Cluster/user of the current context + server version, for the header block.
+# Cached by the caller (refetched only on context switch); short timeout so a
+# dead VPN doesn't hang startup.
+kube_cluster_info() {
+  CUR_CLUSTER="?"; CUR_USER="?"; K8S_VER="?"
+  if [[ -n ${K9L_DEMO:-} ]]; then
+    CUR_CLUSTER=demo-cluster; CUR_USER=demo-user; K8S_VER=demo
+    return 0
+  fi
+  local out l1 l2
+  out=$($KUBECTL_BIN config view --minify \
+        -o 'jsonpath={.contexts[0].context.cluster}{"\n"}{.contexts[0].context.user}' 2>/dev/null)
+  out=${out//$'\r'/}
+  l1=${out%%$'\n'*}
+  l2=${out#*$'\n'}
+  [[ -n $l1 ]] && CUR_CLUSTER=$l1
+  [[ -n $l2 && $l2 != "$out" ]] && CUR_USER=$l2
+  out=$($KUBECTL_BIN version -o json --request-timeout=3 2>/dev/null \
+        | sed -n 's/.*"gitVersion": *"\([^"]*\)".*/\1/p' | tail -1)
+  out=${out//$'\r'/}
+  [[ -n $out ]] && K8S_VER=$out
+}
+
 # List context names into CTX_LIST. Returns 1 + KUBE_ERR on failure.
 kube_contexts() {
   CTX_LIST=()
