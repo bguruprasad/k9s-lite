@@ -9,8 +9,8 @@
 #   K9L_DEMO=1 bash k9s-lite.sh   # built-in demo data, no cluster needed
 #   K9L_KUBECTL=oc ...            # drive OpenShift's oc instead of kubectl
 #
-# Keys: j/k/arrows/wheel move · g/G top/bottom · r refresh · n namespaces
-#       0 all-namespaces toggle · q quit
+# Keys: j/k/arrows/wheel move · g/G top/bottom · : command (:po :svc :deploy ...)
+#       / filter · n namespaces · c contexts · r refresh · 0 all-ns toggle · q quit
 
 set -u
 
@@ -22,11 +22,13 @@ source "$K9L_ROOT/lib/kube.sh"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
+PICKER_KIND=""      # ns | ctx
 LAST_NS=""          # remembered across the all-namespaces toggle
+FILTER=""
 ARG_NS=""
 
 usage() {
-  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 parse_args() {
@@ -53,20 +55,29 @@ demo_data() {
   done
 }
 
-# fetch + derive title/message; never crashes the loop on kubectl failure
+# fetch + filter + derive title/message; never crashes the loop on kubectl failure
 refresh() {
   kube_fetch || true
-  TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}"
+  if [[ -n $FILTER && -z $KUBE_ERR && ${#TABLE_ROWS[@]} -gt 0 ]]; then
+    local kept=() row
+    shopt -s nocasematch
+    for row in "${TABLE_ROWS[@]}"; do
+      [[ $row == *"$FILTER"* ]] && kept+=("$row")
+    done
+    shopt -u nocasematch
+    if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
+  fi
+  TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}${FILTER:+  /$FILTER}"
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"
   elif (( ${#TABLE_ROWS[@]} == 0 )); then
-    TABLE_MSG="no resources found in ns:${CUR_NS:-all}"
+    TABLE_MSG="nothing to show in ns:${CUR_NS:-all}${FILTER:+ matching /$FILTER}"
   else
     TABLE_MSG=""
   fi
 }
 
-# --- line input on the footer row (for RBAC-restricted users who can't list ns)
+# --- line input on the footer row
 prompt_input() {
   REPLY_STR=""
   printf '\e[%d;1H\e[0m\e[K%s' "$ROWS" "$1"
@@ -78,8 +89,49 @@ prompt_input() {
   REPLY_STR=${REPLY_STR//$'\r'/}
 }
 
-# --- namespace picker (reuses the table view state)
-picker_open() {
+# --- command mode: switch resource kind; kubectl validates, revert on error
+cmd_mode() {
+  prompt_input ":"
+  local input=${REPLY_STR// /}
+  case "$input" in
+    "")                refresh; return ;;
+    q|quit)            RUNNING=0; return ;;
+    ns|namespaces|projects) open_ns_picker; return ;;
+    ctx|contexts)      open_ctx_picker; return ;;
+  esac
+  local old=$RESOURCE
+  RESOURCE=$input
+  CURSOR=0; SCROLL=0
+  refresh
+  if [[ -n $KUBE_ERR ]]; then
+    RESOURCE=$old   # keep previous view; error line stays visible
+    TABLE_TITLE="${CUR_CTX}  ns:${CUR_NS:-all}  ${RESOURCE}${FILTER:+  /$FILTER}"
+  fi
+}
+
+filter_mode() {
+  prompt_input "/"
+  FILTER=$REPLY_STR
+  CURSOR=0; SCROLL=0
+  refresh
+}
+
+# --- pickers (ns / ctx) — share the table view state
+picker_enter() { # $1 kind  $2 title  $3 header  $4 current-value; TABLE_ROWS preset
+  MODE=picker
+  PICKER_KIND=$1
+  TABLE_TITLE=$2
+  TABLE_HEADER=$3
+  TABLE_MSG=""
+  TABLE_FOOT="Enter:select  i:type-name  Esc:cancel  j/k:move"
+  CURSOR=0; SCROLL=0
+  local i
+  for i in "${!TABLE_ROWS[@]}"; do
+    [[ ${TABLE_ROWS[i]} == "$4" ]] && CURSOR=$i
+  done
+}
+
+open_ns_picker() {
   if ! kube_namespaces; then
     # namespace listing is often Forbidden with ns-scoped RBAC — type it instead
     prompt_input "can't list namespaces (${KUBE_ERR}) — enter namespace: "
@@ -90,21 +142,34 @@ picker_open() {
     refresh
     return
   fi
-  MODE=picker
-  TABLE_TITLE="select namespace   (current: ${CUR_NS:-all})"
-  TABLE_HEADER="NAMESPACE"
-  TABLE_MSG=""
-  TABLE_FOOT="Enter:select  i:type-name  Esc:cancel  j/k:move"
-  TABLE_ROWS=("${NS_LIST[@]}")
-  CURSOR=0; SCROLL=0
-  local i
-  for i in "${!TABLE_ROWS[@]}"; do
-    [[ ${TABLE_ROWS[i]} == "$CUR_NS" ]] && CURSOR=$i
-  done
+  if (( ${#NS_LIST[@]} )); then TABLE_ROWS=("${NS_LIST[@]}"); else TABLE_ROWS=(); fi
+  picker_enter ns "select namespace   (current: ${CUR_NS:-all})" NAMESPACE "$CUR_NS"
+}
+
+open_ctx_picker() {
+  if ! kube_contexts; then
+    TABLE_MSG="ERROR: $KUBE_ERR"
+    return
+  fi
+  if (( ${#CTX_LIST[@]} )); then TABLE_ROWS=("${CTX_LIST[@]}"); else TABLE_ROWS=(); fi
+  picker_enter ctx "select context   (current: $CUR_CTX)" CONTEXT "$CUR_CTX"
+}
+
+picker_apply() { # $1 selected value
+  [[ -z $1 ]] && return
+  case "$PICKER_KIND" in
+    ns)  CUR_NS=$1 ;;
+    ctx)
+      if kube_use_context "$1"; then
+        CUR_CTX=$1
+        kube_ctx_namespace   # namespace follows the new context
+      fi ;;
+  esac
 }
 
 picker_close() {
   MODE=table
+  PICKER_KIND=""
   TABLE_FOOT=""
   CURSOR=0; SCROLL=0
   refresh
@@ -119,11 +184,11 @@ dispatch_picker() {
     WHEEL_DOWN) table_move 3 ;;
     WHEEL_UP)   table_move -3 ;;
     ENTER)
-      (( ${#TABLE_ROWS[@]} > 0 )) && CUR_NS="${TABLE_ROWS[CURSOR]}"
+      (( ${#TABLE_ROWS[@]} > 0 )) && picker_apply "${TABLE_ROWS[CURSOR]}"
       picker_close ;;
     i)
-      prompt_input "enter namespace: "
-      [[ -n $REPLY_STR ]] && CUR_NS=$REPLY_STR
+      prompt_input "enter ${PICKER_KIND}: "
+      picker_apply "$REPLY_STR"
       picker_close ;;
     q|Q|ESC)    picker_close ;;
   esac
@@ -144,8 +209,12 @@ dispatch() {
     PGUP)     table_move $(( -(ROWS - 3) )) ;;
     WHEEL_DOWN) table_move 3 ;;
     WHEEL_UP)   table_move -3 ;;
+    :)        cmd_mode ;;
+    /)        filter_mode ;;
     r|R)      refresh ;;
-    n)        picker_open ;;
+    n)        open_ns_picker ;;
+    c)        open_ctx_picker ;;
+    ESC)      [[ -n $FILTER ]] && { FILTER=""; CURSOR=0; SCROLL=0; refresh; } ;;
     0)        # explicit all-namespaces toggle (needs cluster-wide list RBAC)
       if [[ -n $CUR_NS ]]; then LAST_NS=$CUR_NS; CUR_NS=""; else CUR_NS=${LAST_NS:-default}; fi
       CURSOR=0; SCROLL=0
@@ -159,8 +228,6 @@ main() {
   kube_init
   if [[ -n $ARG_NS ]]; then
     CUR_NS=$ARG_NS
-  elif [[ -n ${K9L_DEMO:-} ]]; then
-    CUR_NS=demo
   else
     kube_ctx_namespace
   fi

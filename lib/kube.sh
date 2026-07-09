@@ -21,11 +21,43 @@ kube_init() {
 # Resolve namespace from the kubeconfig context (what `kubectl config set-context
 # --current --namespace=X` sets); falls back to "default".
 kube_ctx_namespace() {
+  if [[ -n ${K9L_DEMO:-} ]]; then
+    CUR_NS=demo
+    return 0
+  fi
   local ns
   ns=$($KUBECTL_BIN config view --minify -o 'jsonpath={..namespace}' 2>/dev/null) || ns=""
   ns=${ns//$'\r'/}
   [[ -z $ns ]] && ns=default
   CUR_NS=$ns
+}
+
+# List context names into CTX_LIST. Returns 1 + KUBE_ERR on failure.
+kube_contexts() {
+  CTX_LIST=()
+  if [[ -n ${K9L_DEMO:-} ]]; then
+    CTX_LIST=(demo demo-staging)
+    return 0
+  fi
+  local out rc line
+  out=$($KUBECTL_BIN config get-contexts -o name 2>&1)
+  rc=$?
+  out=${out//$'\r'/}
+  if (( rc != 0 )); then
+    KUBE_ERR=${out%%$'\n'*}
+    return 1
+  fi
+  while IFS= read -r line; do
+    [[ -n $line ]] && CTX_LIST+=("$line")
+  done <<< "$out"
+  return 0
+}
+
+# Switch the kubeconfig current-context (global, like kubectx — keeps every
+# kubectl call consistent with the user's other terminals).
+kube_use_context() {
+  [[ -n ${K9L_DEMO:-} ]] && return 0
+  $KUBECTL_BIN config use-context "$1" >/dev/null 2>&1
 }
 
 # List namespace names into NS_LIST. Returns 1 + KUBE_ERR on failure.

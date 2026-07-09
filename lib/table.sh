@@ -76,7 +76,7 @@ table_draw() {
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"
   else
-    printf -v line ' j/k:move  g/G:top/btm  r:refresh  n:namespace  0:all-ns  q:quit  [%dx%d]' "$COLS" "$ROWS"
+    printf -v line ' ::cmd  /:filter  n:ns  c:ctx  r:refresh  0:all-ns  q:quit  [%dx%d]' "$COLS" "$ROWS"
   fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'
