@@ -1,0 +1,155 @@
+# Sample resources for testing k9s-lite against a local cluster (kind).
+# Gives every view something to show: healthy pods, a crashing pod, a pending
+# pod, completed jobs, services, configmaps, secrets, a cronjob.
+#
+#   kubectl apply -f hack/sample-resources.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: demo
+spec:
+  selector: { app: web }
+  ports: [{ port: 80, targetPort: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      containers:
+        - name: echo
+          image: busybox
+          # chatty logs so `l` (logs follow) has something to stream
+          command: ["sh", "-c", "while true; do echo \"$(date) api heartbeat\"; sleep 5; done"]
+---
+# CrashLoopBackOff: exits immediately, forever
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crasher
+  namespace: demo
+spec:
+  containers:
+    - name: crasher
+      image: busybox
+      command: ["sh", "-c", "echo boom; exit 1"]
+---
+# Pending forever: requests more memory than the node has
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stuck-pending
+  namespace: demo
+spec:
+  containers:
+    - name: hog
+      image: busybox
+      command: ["sleep", "infinity"]
+      resources:
+        requests: { memory: "512Gi" }
+---
+# Completed job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: demo
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: busybox
+          command: ["sh", "-c", "echo migrating...; sleep 2; echo done"]
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: report
+  namespace: demo
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: report
+              image: busybox
+              command: ["sh", "-c", "echo report generated"]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: demo
+data:
+  LOG_LEVEL: debug
+  FEATURE_X: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: demo
+type: Opaque
+stringData:
+  API_KEY: not-a-real-key
+---
+# Second namespace so the namespace picker has something to switch to
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-batch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: demo-batch
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: worker }
+  template:
+    metadata:
+      labels: { app: worker }
+    spec:
+      containers:
+        - name: worker
+          image: busybox
+          command: ["sleep", "infinity"]
