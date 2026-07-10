@@ -42,11 +42,19 @@ Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box dra
 ## Install
 
 One file, no clone, nothing else to set up — grab `k9s-lite.dist.sh` from the
-[latest release](../../releases/latest) and run it:
+[releases page](../../releases) and run it. Pin a specific version (recommended,
+especially where you need to know exactly what you're running):
+
+```sh
+curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.4/k9s-lite.dist.sh
+bash k9s-lite.dist.sh
+```
+
+Or track the newest release — same URL shape with `latest` (note the path
+differs slightly: `latest/download/` vs `download/<tag>/`):
 
 ```sh
 curl -LO https://github.com/bguruprasad/k9s-lite/releases/latest/download/k9s-lite.dist.sh
-bash k9s-lite.dist.sh
 ```
 
 That single script is the entire program (`k9s-lite.sh` + every `lib/*.sh`
