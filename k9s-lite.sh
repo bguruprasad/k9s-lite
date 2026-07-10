@@ -290,8 +290,9 @@ open_help() {
   DETAIL_VIEW=1
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
-  TABLE_TITLE="help"
-  TABLE_TITLE_C=$'\e[1;36m'"k9s-lite "$'\e[22;35m'"v$K9L_VERSION — key reference"$'\e[0m'
+  # TABLE_TITLE must match TABLE_TITLE_C's visible width — it drives the border math
+  TABLE_TITLE="k9s-lite v$K9L_VERSION - key reference"
+  TABLE_TITLE_C=$'\e[1;36m'"k9s-lite "$'\e[22;35m'"v$K9L_VERSION - key reference"$'\e[0m'
   TABLE_HEADER="k9s, but lite"
   TABLE_MSG=""
   TABLE_FOOT="j/k:scroll  q/Esc:back"
@@ -314,7 +315,7 @@ open_help() {
     ""
     "Navigate:"
     "  j / k / arrows / wheel / PgUp / PgDn / g / G"
-    "  : (cmd):      switch resource — :po :svc :deploy :sts :events :routes ..."
+    "  : (cmd):      switch resource - :po :svc :deploy :sts :events :routes ..."
     "  / (filter):   filter rows, case-insensitive; Esc clears"
     "  a:            browse every resource kind the cluster supports"
     "  n:            namespace picker (type a name if listing is forbidden)"
