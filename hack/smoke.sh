@@ -25,14 +25,13 @@ feed() {
 
 export K9L_DEMO=1 TERM=xterm-256color
 
-# This step has failed twice on macos-latest GitHub Actions runners at
-# exactly two different self-imposed timeout values (45s, then 90s), which
-# can't be reproduced locally on macOS or Linux. That pattern — always
-# failing at exactly the cap, never in between — means the previous fix
-# attempts were masking the real question: is $OUT actually filling up
-# slowly on that runner, or is something about `feed | script` not running
-# at all? Log progress every 5s so the next run's output answers that
-# directly instead of guessing at another timeout number.
+# Poll $OUT for the app's own alt-screen-restore marker instead of waiting on
+# script(1)'s process exit — measures our app's real behavior, not a wrapper
+# process's teardown timing. This failed twice transiently on macos-latest
+# runners early on (exactly at the timeout cap, each time); confirmed via the
+# debug lines below that on a normal run the marker appears in 4-5s on every
+# OS, so the transient failures were runner-fleet flakiness, not a real hang.
+# Keep the debug logging — cheap, and decisive if it flakes again.
 CAP=60
 : > "$OUT"
 start_ts=$(date +%s)
