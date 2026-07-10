@@ -135,4 +135,4 @@ and assert on the rendered frames — see PLAN.md.
 
 ## License
 
-TBD.
+[MIT](LICENSE)
