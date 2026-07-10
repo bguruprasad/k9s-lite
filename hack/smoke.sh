@@ -25,17 +25,17 @@ feed() {
 
 export K9L_DEMO=1 TERM=xterm-256color
 
-# Hard wall-clock cap: BSD script(1) has been observed taking ~45s to tear
-# down its pty session on macos-latest GitHub Actions runners even though the
-# wrapped app exits in ~4s (not reproducible locally — runner-specific pty/IO
-# teardown latency, not a hang in our code). Neither `timeout` nor `gtimeout`
-# ships on stock macOS, so implement the cap in pure bash: launch the pipeline
-# in a background subshell, race a sleep watchdog against it, kill whichever
-# loses. What actually matters is the ASSERTIONS below, not how fast script(1)
-# itself exits — so poll $OUT for the app's own clean-exit marker instead of
-# trusting the wrapper process's wall-clock teardown time.
-CAP=90
+# This step has failed twice on macos-latest GitHub Actions runners at
+# exactly two different self-imposed timeout values (45s, then 90s), which
+# can't be reproduced locally on macOS or Linux. That pattern — always
+# failing at exactly the cap, never in between — means the previous fix
+# attempts were masking the real question: is $OUT actually filling up
+# slowly on that runner, or is something about `feed | script` not running
+# at all? Log progress every 5s so the next run's output answers that
+# directly instead of guessing at another timeout number.
+CAP=60
 : > "$OUT"
+start_ts=$(date +%s)
 (
   case "$(uname -s)" in
     Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
@@ -44,21 +44,24 @@ CAP=90
 ) >/dev/null 2>&1 &
 run_pid=$!
 
-( sleep "$CAP"; kill "$run_pid" 2>/dev/null ) &
-watchdog_pid=$!
-
-# Poll for the app's alt-screen-restore marker — the real signal that our
-# code ran to completion — rather than waiting on script(1)'s own exit.
 waited=0
 while (( waited < CAP )); do
-  grep -qF $'\e[?1049l' "$OUT" 2>/dev/null && break
-  kill -0 "$run_pid" 2>/dev/null || break   # wrapper already exited
+  if grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
+    echo "debug: clean-exit marker seen at ${waited}s"
+    break
+  fi
+  if ! kill -0 "$run_pid" 2>/dev/null; then
+    echo "debug: wrapper process gone at ${waited}s, \$OUT is $(wc -c < "$OUT" 2>/dev/null || echo 0) bytes"
+    break
+  fi
+  if (( waited % 5 == 0 )); then
+    echo "debug: t=${waited}s wrapper alive, \$OUT is $(wc -c < "$OUT" 2>/dev/null || echo 0) bytes so far"
+  fi
   sleep 1; (( waited++ ))
 done
+echo "debug: loop ended after $(( $(date +%s) - start_ts ))s wall clock, waited=${waited}s"
 
-kill "$watchdog_pid" 2>/dev/null
-wait "$watchdog_pid" 2>/dev/null
-kill "$run_pid" 2>/dev/null   # done reading what we need; stop waiting on script(1)'s teardown
+kill "$run_pid" 2>/dev/null
 wait "$run_pid" 2>/dev/null
 
 if (( waited >= CAP )) && ! grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
