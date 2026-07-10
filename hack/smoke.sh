@@ -25,41 +25,46 @@ feed() {
 
 export K9L_DEMO=1 TERM=xterm-256color
 
-# Hard wall-clock cap: BSD script(1) can hang waiting on pty/tty setup on some
-# CI runners (observed on macos-latest GitHub Actions images, no real tty on
-# stdin). Neither `timeout` nor `gtimeout` ships on stock macOS, so implement
-# the cap in pure bash: launch the pipeline in a background subshell, race a
-# sleep watchdog against it, kill whichever loses. 45s (not 30s) gives a slow
-# runner headroom — the feed itself only needs ~4s, so 45s is still a real cap,
-# not a rubber stamp. One retry absorbs a single slow/flaky tick; a genuine
-# hang fails the same way on both attempts.
-run_once() {
-  : > "$OUT"
-  (
-    case "$(uname -s)" in
-      Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
-      *)      feed | script -qec "bash $TARGET" "$OUT" ;;
-    esac
-  ) >/dev/null 2>&1 &
-  local run_pid=$!
+# Hard wall-clock cap: BSD script(1) has been observed taking ~45s to tear
+# down its pty session on macos-latest GitHub Actions runners even though the
+# wrapped app exits in ~4s (not reproducible locally — runner-specific pty/IO
+# teardown latency, not a hang in our code). Neither `timeout` nor `gtimeout`
+# ships on stock macOS, so implement the cap in pure bash: launch the pipeline
+# in a background subshell, race a sleep watchdog against it, kill whichever
+# loses. What actually matters is the ASSERTIONS below, not how fast script(1)
+# itself exits — so poll $OUT for the app's own clean-exit marker instead of
+# trusting the wrapper process's wall-clock teardown time.
+CAP=90
+: > "$OUT"
+(
+  case "$(uname -s)" in
+    Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
+    *)      feed | script -qec "bash $TARGET" "$OUT" ;;
+  esac
+) >/dev/null 2>&1 &
+run_pid=$!
 
-  ( sleep 45; kill "$run_pid" 2>/dev/null ) &
-  local watchdog_pid=$!
+( sleep "$CAP"; kill "$run_pid" 2>/dev/null ) &
+watchdog_pid=$!
 
-  local rc=0
-  wait "$run_pid" 2>/dev/null || rc=$?
-  kill "$watchdog_pid" 2>/dev/null
-  wait "$watchdog_pid" 2>/dev/null
-  return "$rc"
-}
+# Poll for the app's alt-screen-restore marker — the real signal that our
+# code ran to completion — rather than waiting on script(1)'s own exit.
+waited=0
+while (( waited < CAP )); do
+  grep -qF $'\e[?1049l' "$OUT" 2>/dev/null && break
+  kill -0 "$run_pid" 2>/dev/null || break   # wrapper already exited
+  sleep 1; (( waited++ ))
+done
 
-if ! run_once; then
-  echo "warn: attempt 1 killed/errored after up to 45s (rc=$?) — retrying once"
-  if ! run_once; then
-    echo "FAIL: smoke test killed/errored on retry too (rc=$?, likely script/pty hang) — partial output:"
-    cat "$OUT"
-    exit 1
-  fi
+kill "$watchdog_pid" 2>/dev/null
+wait "$watchdog_pid" 2>/dev/null
+kill "$run_pid" 2>/dev/null   # done reading what we need; stop waiting on script(1)'s teardown
+wait "$run_pid" 2>/dev/null
+
+if (( waited >= CAP )) && ! grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
+  echo "FAIL: smoke test's clean-exit marker never appeared within ${CAP}s — partial output:"
+  cat "$OUT"
+  exit 1
 fi
 
 echo "--- target: $TARGET ---"

@@ -28,8 +28,9 @@ jobs:
         # macos exercises bash 3.2 (system /bin/bash), ubuntu exercises bash 5
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # backstop: smoke.sh has its own 45s internal watchdog (x2 attempts) around
-    # the pty session, but cap the whole job too in case something else hangs
+    # backstop: smoke.sh polls for a clean-exit marker with a 90s cap (doesn't
+    # wait on script(1)'s own teardown, which has been slow on this runner),
+    # but cap the whole job too in case something else hangs
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
