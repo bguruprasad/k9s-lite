@@ -24,6 +24,9 @@ containers) where the real k9s isn't available.
 Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box drawing.
 Colors follow k9s: yellow labels / bold-white values, blue keys / gray actions,
 cyan resource + magenta namespace in the title, light-blue selection bar.
+The layout is responsive: on wide terminals table columns stretch to fill the
+screen, the key map right-aligns to the edge, and an ASCII `k9l` logo appears
+centered in the header. Everything re-flows live on resize.
 
 ## Why
 
