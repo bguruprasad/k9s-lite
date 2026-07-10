@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.8.1"
+K9L_VERSION="0.8.2"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -75,6 +75,7 @@ K9L_LOGO=(
 '|   <    \__, |  | |'
 '|_|\_\     /_/   |_|'
 )
+K9L_TAG="k9s, but lite"
 
 # add_info_line <label> <value> [<key> <action>]...
 # k9s layout: identity block left, key map right-aligned to the screen edge,
@@ -106,6 +107,7 @@ add_info_line() {
     left_c+="$sp${C_LBL}${K9L_LOGO[line_i]}${C_RST}"
     printf -v sp '%*s' "$r" ''
     left_c+="$sp"
+    INFO_SHOW_TAG=1
   else
     printf -v sp '%*s' "$mid" ''
     left_c+="$sp"
@@ -116,12 +118,21 @@ add_info_line() {
 INFO_COLS=0
 build_info() {
   INFO_LINES=()
+  INFO_SHOW_TAG=0
   INFO_COLS=$COLS
-  add_info_line "Context:" "$CUR_CTX"       "<d>"  "describe"  "<l>"  "logs"   "<:>" "resource"
-  add_info_line "Cluster:" "$CUR_CLUSTER"   "<y>"  "yaml"      "<s>"  "shell"  "</>" "filter"
-  add_info_line "User:"    "$CUR_USER"      "<v>"  "events"    "<e>"  "edit"   "<n>" "namespace"
-  add_info_line "K9l Rev:" "v$K9L_VERSION"  "<p>"  "prev logs" "<^d>" "delete" "<q>" "quit"
-  add_info_line "K8s Rev:" "$K8S_VER"       ""     ""          ""     ""       ""    ""
+  add_info_line "Context:" "$CUR_CTX"       "<d>"  "describe"  "<s>"  "shell"   "<:>" "resource"
+  add_info_line "Cluster:" "$CUR_CLUSTER"   "<y>"  "yaml"      "<e>"  "edit"    "</>" "filter"
+  add_info_line "User:"    "$CUR_USER"      "<v>"  "events"    "<^d>" "delete"  "<n>" "namespace"
+  add_info_line "K9l Rev:" "v$K9L_VERSION"  "<l>"  "logs"      "<r>"  "refresh" "<c>" "context"
+  add_info_line "K8s Rev:" "$K8S_VER"       "<p>"  "prev logs" "<a>"  "browse"  "<q>" "quit"
+  if (( INFO_SHOW_TAG )); then
+    # tagline centered under the logo (wide screens only)
+    local logo_w=${#K9L_LOGO[0]} mid=$(( COLS - 35 - 45 )) sp pos
+    pos=$(( 35 + (mid - logo_w) / 2 + (logo_w - ${#K9L_TAG}) / 2 ))
+    (( pos < 0 )) && pos=0
+    printf -v sp '%*s' "$pos" ''
+    INFO_LINES+=("${sp}${C_ACT}${K9L_TAG}${C_RST}")
+  fi
 }
 
 # k9s-style title: cyan resource, magenta (namespace [/filter]); the renderer

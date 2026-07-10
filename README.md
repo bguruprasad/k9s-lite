@@ -6,11 +6,11 @@ environments (corporate Windows machines with only Git Bash, jump hosts, minimal
 containers) where the real k9s isn't available.
 
 ```
- Context:  kind-k9s-lite         <d> describe    <l> logs       <:>  resource
- Cluster:  kind-k9s-lite         <y> yaml        <s> shell      </>  filter
- User:     kind-k9s-lite         <v> events      <e> edit       <n>  namespace
- K9l Rev:  v0.8.1                <p> prev logs   <^d> delete    <q>  quit
- K8s Rev:  v1.36.1
+ Context:  kind-k9s-lite         <d> describe    <s> shell      <:>  resource
+ Cluster:  kind-k9s-lite         <y> yaml        <e> edit       </>  filter
+ User:     kind-k9s-lite         <v> events      <^d> delete    <n>  namespace
+ K9l Rev:  v0.8.2                <l> logs        <r> refresh    <c>  context
+ K8s Rev:  v1.36.1               <p> prev logs   <a> browse     <q>  quit
 ┌────────────────────────────── pods(demo)[8] ─────────────────────────────┐
 │ NAME                   READY   STATUS             RESTARTS      AGE      │
 │>api-748ffb4cd6-mnr6t   1/1     Running            0             97m      │
