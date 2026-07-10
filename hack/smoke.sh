@@ -35,7 +35,7 @@ check() {
 check 'demo-app-1-'          'table renders demo rows'
 check '(demo)'               'title shows namespace'
 check '>demo-app-4-'         'j moves the cursor'
-check $'\e[104;30m'          'selection bar drawn'
+check $'\e[107;30m'          'selection bar drawn'
 check 'Context:'             'header identity block'
 check 'key reference'        'help view opens on ?'
 check $'\e[?1049l'           'alt screen restored on quit'
