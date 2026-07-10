@@ -1,37 +1,26 @@
-# k9s-lite
+<p align="center">
+  <img src="assets/logo.svg" width="440" alt="k9l — k9s, but lite"/>
+</p>
 
-[![CI](https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml/badge.svg)](https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![bash 3.2+](https://img.shields.io/badge/bash-3.2%2B-green.svg)](#requirements)
+<p align="center">
+  <a href="https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml"><img src="https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/bash-3.2%2B-green.svg" alt="bash 3.2+"/></a>
+</p>
+
+# k9s-lite
 
 A [k9s](https://k9scli.io/)-style terminal UI for Kubernetes in **pure Bash + kubectl**.
 No Go binary, no tview/tcell, no jq — nothing to install. Built for locked-down
 environments (corporate Windows machines with only Git Bash, jump hosts, minimal
 containers) where the real k9s isn't available.
 
-```
- Context:  kind-k9s-lite         <d> describe    <s> shell      <:>  resource
- Cluster:  kind-k9s-lite         <y> yaml        <e> edit       </>  filter
- User:     kind-k9s-lite         <v> events      <^d> delete    <n>  namespace
- K9l Rev:  v0.8.2                <l> logs        <r> refresh    <c>  context
- K8s Rev:  v1.36.1               <p> prev logs   <a> browse     <q>  quit
-┌────────────────────────────── pods(demo)[8] ─────────────────────────────┐
-│ NAME                   READY   STATUS             RESTARTS      AGE      │
-│>api-748ffb4cd6-mnr6t   1/1     Running            0             97m      │
-│ api-748ffb4cd6-wczk7   1/1     Running            0             97m      │
-│ crasher                0/1     CrashLoopBackOff   22 (2m ago)   97m      │
-│ migrate-tbwnn          0/1     Completed          0             97m      │
-│ stuck-pending          0/1     Pending            0             97m      │
-│ web-6bcd64c5d4-6qgvv   1/1     Running            0             97m      │
-└──────────────────────────────────────────────────────────────────────────┘
- a:resources  r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter
-```
-Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box drawing.
-Colors follow k9s: yellow labels / bold-white values, blue keys / gray actions,
-cyan resource + magenta namespace in the title, light-blue selection bar.
+![k9s-lite browsing the demo namespace: colored pod table, k9s-style header with key map and logo](screenshot/k9l-screenshot.png)
+
 The layout is responsive: on wide terminals table columns stretch to fill the
-screen, the key map right-aligns to the edge, and an ASCII `k9l` logo appears
-centered in the header. Everything re-flows live on resize.
+screen, the key map right-aligns to the edge, and the ASCII logo appears in the
+header; on narrow screens everything collapses gracefully. Colors follow k9s.
+Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box drawing.
 
 ## Why
 
