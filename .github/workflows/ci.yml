@@ -7,15 +7,19 @@ on:
 
 jobs:
   lint:
+    # shellcheck isn't preinstalled on macos-latest runners; ubuntu-latest
+    # bundles it, and lint checks aren't OS-specific behavior anyway
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: shellcheck
-        run: shellcheck -S warning k9s-lite.sh lib/*.sh hack/*.sh
+      - name: build single-file dist
+        run: bash hack/build-dist.sh
+      - name: shellcheck (source + dist artifact)
+        run: shellcheck -S warning k9s-lite.sh lib/*.sh hack/*.sh dist/k9s-lite.dist.sh
       - name: bash syntax check
         run: |
           bash -n k9s-lite.sh
-          for f in lib/*.sh hack/*.sh; do bash -n "$f"; done
+          for f in lib/*.sh hack/*.sh dist/*.sh; do bash -n "$f"; done
 
   smoke:
     name: smoke (${{ matrix.os }})
@@ -33,7 +37,5 @@ jobs:
         run: bash hack/smoke.sh
       - name: build single-file dist
         run: bash hack/build-dist.sh
-      - name: shellcheck the dist artifact
-        run: shellcheck -S warning dist/k9s-lite.dist.sh
       - name: pty smoke test (dist build)
         run: bash hack/smoke.sh dist/k9s-lite.dist.sh
