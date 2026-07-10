@@ -15,7 +15,7 @@ No Go binary, no tview/tcell, no jq — nothing to install. Built for locked-dow
 environments (corporate Windows machines with only Git Bash, jump hosts, minimal
 containers) where the real k9s isn't available.
 
-![k9s-lite browsing the demo namespace: colored pod table, k9s-style header with key map and logo](screenshot/k9l-screenshot.png)
+![k9s-lite browsing the demo namespace: colored pod table, k9s-style header with key map and logo](assets/k9l-screenshot.png)
 
 The layout is responsive: on wide terminals table columns stretch to fill the
 screen, the key map right-aligns to the edge, and the ASCII logo appears in the
