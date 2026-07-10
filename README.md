@@ -17,138 +17,135 @@ containers) where the real k9s isn't available.
 
 ![k9s-lite browsing the demo namespace: colored pod table, k9s-style header with key map and logo](assets/k9l-screenshot.png)
 
-The layout is responsive: on wide terminals table columns stretch to fill the
-screen, the key map right-aligns to the edge, and the ASCII logo appears in the
-header; on narrow screens everything collapses gracefully. Colors follow k9s.
-Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box drawing.
+## Quick start
 
-## Why
-
-- **Zero dependencies** beyond `bash` (3.2+), `kubectl`, and the coreutils that ship
-  with Git Bash / any Linux / macOS. kubectl does all parsing and auth — including
-  corporate SSO/OIDC setups that are painful to reimplement.
-- **RBAC-friendly**: designed for users who can only see specific namespaces.
-  Nothing requires cluster-wide permissions; when listing namespaces is Forbidden,
-  you type the namespace name instead.
-- **OpenShift-aware**: run it with `K9L_KUBECTL=oc` — `:routes` works via API
-  discovery, and the namespace picker uses RBAC-filtered `projects`.
-
-## Requirements
-
-- bash 3.2+ (macOS system bash works; Git Bash on Windows ships 5.x)
-- `kubectl` (or `oc`) on PATH, configured with a kubeconfig
-- On Windows/Git Bash: `winpty` for `exec`/`edit` (bundled with Git for Windows)
-
-## Install
-
-One file, no clone, nothing else to set up — grab `k9s-lite.dist.sh` from the
-[releases page](../../releases) and run it. Pin a specific version (recommended,
+Grab the single-file build from the [releases page](../../releases) and run it —
+that one script is the entire program. Pin a specific version (recommended,
 especially where you need to know exactly what you're running):
 
 ```sh
 curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.4/k9s-lite.dist.sh
-bash k9s-lite.dist.sh
+bash k9s-lite.dist.sh -n my-namespace
 ```
 
-Or track the newest release — same URL shape with `latest` (note the path
-differs slightly: `latest/download/` vs `download/<tag>/`):
+To always pull the newest release instead, use
+`releases/latest/download/k9s-lite.dist.sh` (note GitHub's path shapes:
+`latest/download/` vs `download/<tag>/`).
 
-```sh
-curl -LO https://github.com/bguruprasad/k9s-lite/releases/latest/download/k9s-lite.dist.sh
-```
-
-That single script is the entire program (`k9s-lite.sh` + every `lib/*.sh`
-concatenated), so it works on jump hosts, locked-down Windows machines with
-Git Bash, or anywhere you can paste one file. CI runs the exact same test
-suite against the single-file and multi-file forms on every push, so they
-can't drift apart.
-
-### From source (development)
-
-```sh
-git clone https://github.com/bguruprasad/k9s-lite.git && cd k9s-lite
-bash k9s-lite.sh
-```
-
-To build the single-file version yourself: `hack/build-dist.sh` (output goes
-to `dist/`, gitignored).
-
-## Usage
-
-Same flags and environment variables for both forms — substitute
-`k9s-lite.dist.sh` for `k9s-lite.sh` if you installed the single file:
-
-```sh
-bash k9s-lite.sh                     # namespace from kubeconfig context, else "default"
-bash k9s-lite.sh -n my-namespace     # start in a specific namespace
-K9L_KUBECTL=oc bash k9s-lite.sh      # OpenShift
-K9L_REFRESH=5 bash k9s-lite.sh       # slower refresh (default 2s) for slow VPNs
-K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
-```
-
-Tip: make it feel like a real command:
+Make it feel like a real command:
 
 ```sh
 mkdir -p ~/bin && mv k9s-lite.dist.sh ~/bin/k9l && chmod +x ~/bin/k9l
 k9l -n my-namespace
 ```
 
+No cluster handy? `K9L_DEMO=1 k9l` runs on built-in demo data.
+
+### Requirements
+
+- bash 3.2+ (macOS system bash works; Git Bash on Windows ships 5.x)
+- `kubectl` (or `oc`) on PATH, configured with a kubeconfig
+- On Windows/Git Bash: `winpty` for `exec`/`edit` (bundled with Git for Windows)
+
 ## Keys
+
+Press `?` inside the app for this list, always up to date.
+
+### Navigate
 
 | Key | Action |
 |-----|--------|
 | `j`/`k`, arrows, mouse wheel | move cursor |
 | `g` / `G`, PgUp / PgDn | top / bottom / page |
 | `:` | command mode — switch resource: `:po` `:svc` `:deploy` `:sts` `:cm` `:secret` `:events` `:routes` … any kind or kubectl shortname |
-| `a` | resource browser — pick from every kind the cluster supports (`kubectl api-resources`, CRDs included) |
+| `a` | resource browser — pick from every kind the cluster supports (CRDs included) |
 | `/` | filter rows (case-insensitive); `Esc` clears |
-| `Enter` | describe rendered inside the box — cyan keys, status-colored values; scroll with j/k, `Esc` back |
+| `n` | namespace picker (typed entry if listing is Forbidden) |
+| `c` | context picker (switches kubeconfig current-context) |
+| `0` | toggle all-namespaces (needs cluster-wide list RBAC) |
+| `?` / `r` / `q` | help / refresh now / quit |
+
+### Inspect
+
+| Key | Action |
+|-----|--------|
+| `Enter` | describe rendered inside the box — colorized, scrollable; `Esc` back |
 | `d` | describe (plain, in pager) |
 | `y` | YAML (pager) |
 | `v` | events for the selected object, oldest→newest |
 | `l` | logs, live follow in `less +F` — `Ctrl-C` stops following (scroll/search), `q` returns |
 | `p` | previous-container logs (crash loops) |
+
+### Operate
+
+| Key | Action |
+|-----|--------|
 | `s` | shell into pod (bash if present, else sh) |
 | `e` | `kubectl edit` |
 | `Ctrl-D` | delete (asks for confirmation) |
-| `n` | namespace picker (typed entry if listing is Forbidden) |
-| `c` | context picker (switches kubeconfig current-context) |
-| `0` | toggle all-namespaces (needs cluster-wide list RBAC) |
-| `?` | help — full key reference rendered in the box |
-| `r` | refresh now |
-| `q` | quit / cancel |
 
-## Namespace resolution
+## Options
 
-1. `--namespace <ns>` argument, if given
-2. the namespace set on your current kubeconfig context
-3. `default`
+One flag: `-n <ns>` / `--namespace <ns>`. The starting namespace resolves as:
+flag → namespace set on your kubeconfig context → `default`. The view stays
+locked to that one namespace unless you explicitly toggle `0` — by design,
+since many users only have RBAC access to specific namespaces.
 
-The view is locked to one namespace unless you explicitly toggle `0`.
+Environment variables:
 
-## Design
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `K9L_KUBECTL` | `kubectl` | CLI to drive — set `oc` for OpenShift |
+| `K9L_REFRESH` | `2` | auto-refresh interval in seconds (raise it on slow VPNs) |
+| `K9L_DEMO` | unset | `1` = built-in demo data, no cluster needed |
+| `K9L_ASCII` | unset | `1` = plain `+---+` borders for terminals without Unicode box drawing |
+
+Both forms take the same flags and variables — the examples work identically
+with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
+
+## Why pure Bash?
+
+- **Zero dependencies** beyond `bash`, `kubectl`, and the coreutils that ship
+  with Git Bash / any Linux / macOS. kubectl does all parsing and auth —
+  including corporate SSO/OIDC setups that are painful to reimplement.
+- **RBAC-friendly**: designed for users who can only see specific namespaces.
+  Nothing requires cluster-wide permissions; when listing namespaces is
+  Forbidden, you type the namespace name instead.
+- **OpenShift-aware**: with `K9L_KUBECTL=oc`, `:routes` works via API
+  discovery and the namespace picker uses RBAC-filtered `projects`.
+
+## How it works
 
 kubectl is the parser: lists are `kubectl get -o wide`, discovery is implicit
 (any resource kind kubectl knows works in `:` command mode — CRDs and OpenShift
-routes included), sorting/filtering of events uses `--sort-by`. The UI is raw
-ANSI escapes with a full redraw per tick; the event loop is a single
-`read -t <refresh>` — the timeout doubles as the polling timer. Interactive
-actions (logs, exec, edit, pagers) suspend the alt screen, hand the real
-terminal to the child, and restore raw mode after. Pager-based views (describe,
-yaml, logs) leave no trace in your shell's scrollback; `s` (exec) and `e` (edit)
-deliberately run on the normal screen so your session transcript survives.
+routes included), and events are sorted server-side with `--sort-by`. The UI is
+raw ANSI escapes with a full redraw per tick; the event loop is a single
+`read -t <refresh>` — the timeout doubles as the polling timer.
 
-See [PLAN.md](PLAN.md) for the full design and milestone history.
+Interactive actions (logs, exec, edit, pagers) suspend the alt screen, hand the
+real terminal to the child, and restore raw mode after. Pager-based views
+(describe, yaml, logs) leave no trace in your shell's scrollback; `s` (exec)
+and `e` (edit) deliberately run on the normal screen so your session transcript
+survives.
+
+The layout is responsive: on wide terminals table columns stretch to fill the
+screen, the key map right-aligns to the edge, and the ASCII logo appears in the
+header; on narrow screens everything collapses gracefully. Colors follow k9s.
 
 ### Windows / Git Bash specifics
 
-- Interactive kubectl (`exec -it`, `edit`) is wrapped with `winpty` automatically
-  under mintty.
+- Interactive kubectl (`exec -it`, `edit`) is wrapped with `winpty`
+  automatically under mintty.
 - All kubectl output is stripped of `\r`; the repo enforces LF endings.
 - Terminal size is polled every tick (mintty doesn't deliver SIGWINCH to bash).
 - No subshells in the render loop — process forks are expensive under Git Bash.
 
 ## Development
+
+```sh
+git clone https://github.com/bguruprasad/k9s-lite.git && cd k9s-lite
+bash k9s-lite.sh
+```
 
 Local test cluster (kind on podman or docker):
 
@@ -158,8 +155,11 @@ kubectl apply -f hack/sample-resources.yaml  # healthy/crashing/pending pods, jo
 bash k9s-lite.sh -n demo
 ```
 
-Tests drive the real TUI in a pseudo-terminal (`script(1)`), feed it key bytes,
-and assert on the rendered frames — see PLAN.md.
+Tests (`hack/smoke.sh`) drive the real TUI in a pseudo-terminal via
+`script(1)`, feed it key bytes, and assert on the rendered frames; CI runs
+them on Ubuntu (bash 5) and macOS (bash 3.2), against both the repo layout
+and the single-file build (`hack/build-dist.sh`, output in `dist/`,
+gitignored) so the two forms can't drift apart.
 
 ## License
 
