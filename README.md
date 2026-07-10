@@ -48,6 +48,21 @@ bash k9s-lite.sh
 
 Or copy `k9s-lite.sh` + the `lib/` directory to any box — that's the whole program.
 
+### Single file (no clone, no directory structure)
+
+For boxes where you can only carry one file — a jump host, a locked-down
+Windows machine, pasting into a remote shell — grab `k9s-lite.dist.sh` from
+the [latest release](../../releases/latest). It's `k9s-lite.sh` and every
+`lib/*.sh` concatenated together; behaves identically, verified by running
+the exact same test suite against both forms on every push.
+
+```sh
+curl -LO https://github.com/bguruprasad/k9s-lite/releases/latest/download/k9s-lite.dist.sh
+bash k9s-lite.dist.sh
+```
+
+To build it yourself: `hack/build-dist.sh` (output goes to `dist/`, gitignored).
+
 ## Usage
 
 ```sh

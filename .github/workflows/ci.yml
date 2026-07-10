@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: shellcheck -S warning k9s-lite.sh lib/*.sh hack/smoke.sh
+        run: shellcheck -S warning k9s-lite.sh lib/*.sh hack/*.sh
       - name: bash syntax check
         run: |
           bash -n k9s-lite.sh
@@ -31,3 +31,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: pty smoke test (demo mode)
         run: bash hack/smoke.sh
+      - name: build single-file dist
+        run: bash hack/build-dist.sh
+      - name: shellcheck the dist artifact
+        run: shellcheck -S warning dist/k9s-lite.dist.sh
+      - name: pty smoke test (dist build)
+        run: bash hack/smoke.sh dist/k9s-lite.dist.sh

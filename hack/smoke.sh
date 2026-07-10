@@ -2,8 +2,16 @@
 # Smoke test: drive the TUI in a pseudo-terminal with demo data (K9L_DEMO=1,
 # no cluster needed) and assert on the rendered frames.
 # Works with BSD script(1) (macOS, tests bash 3.2) and util-linux script (Linux).
+#
+# Usage: hack/smoke.sh [path-to-script]
+#   Defaults to k9s-lite.sh (the multi-file dev version). Pass
+#   dist/k9s-lite.dist.sh to run the exact same assertions against the
+#   single-file build, so it can never silently drift from the real thing.
 set -u
 cd "$(dirname "$0")/.." || exit 1
+
+TARGET=${1:-k9s-lite.sh}
+[[ -f $TARGET ]] || { echo "FAIL: $TARGET not found"; exit 1; }
 
 OUT=$(mktemp)
 trap 'rm -f "$OUT"' EXIT
@@ -24,8 +32,8 @@ export K9L_DEMO=1 TERM=xterm-256color
 # sleep watchdog against it, kill whichever loses.
 (
   case "$(uname -s)" in
-    Darwin) feed | script -q "$OUT" /bin/bash k9s-lite.sh ;;
-    *)      feed | script -qec "bash k9s-lite.sh" "$OUT" ;;
+    Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
+    *)      feed | script -qec "bash $TARGET" "$OUT" ;;
   esac
 ) >/dev/null 2>&1 &
 run_pid=$!
@@ -47,6 +55,7 @@ if (( rc != 0 )); then
   exit 1
 fi
 
+echo "--- target: $TARGET ---"
 fail=0
 check() {
   if grep -qF -- "$1" "$OUT"; then
