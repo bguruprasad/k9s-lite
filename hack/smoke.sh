@@ -16,11 +16,23 @@ TARGET=${1:-k9s-lite.sh}
 OUT=$(mktemp)
 trap 'rm -f "$OUT"' EXIT
 
+# Root-caused via the debug logging below: on some CI runs, script(1)'s pty
+# isn't fully attached yet when this pipe's first byte arrives, and that byte
+# (sometimes the whole first burst) gets silently dropped — confirmed by
+# watching $OUT grow steadily for 60s while the cursor never left row 0, i.e.
+# the app was alive and redrawing on its normal refresh tick, just never
+# received a single keystroke. Fix: send the whole sequence multiple times
+# with growing initial delay. Once one full pass lands, `q` ends the app and
+# the marker-poll loop below exits immediately — the repeats are a no-op then.
 feed() {
-  sleep 1; printf 'jjj'     # move cursor 3 down
-  sleep 1; printf '?'       # open help
-  sleep 1; printf '\033'    # Esc back to table
-  sleep 1; printf 'q'       # quit
+  local n
+  for n in 1 2 3 4 5 6; do
+    sleep "$n"
+    printf 'jjj'     # move cursor 3 down
+    sleep 1; printf '?'       # open help
+    sleep 1; printf '\033'    # Esc back to table
+    sleep 1; printf 'q'       # quit
+  done
 }
 
 export K9L_DEMO=1 TERM=xterm-256color
@@ -32,7 +44,7 @@ export K9L_DEMO=1 TERM=xterm-256color
 # debug lines below that on a normal run the marker appears in 4-5s on every
 # OS, so the transient failures were runner-fleet flakiness, not a real hang.
 # Keep the debug logging — cheap, and decisive if it flakes again.
-CAP=60
+CAP=75   # worst case: 6 feed attempts with 1..6s growing delay ≈ 21s + slack
 : > "$OUT"
 start_ts=$(date +%s)
 (
