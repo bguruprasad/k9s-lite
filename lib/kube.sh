@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# kube.sh — all cluster access goes through here.
+# kube.sh - all cluster access goes through here.
 # K9L_KUBECTL=oc points every call at the OpenShift CLI instead.
 # K9L_DEMO=1 skips the cluster entirely and uses built-in demo data.
 
@@ -33,7 +33,7 @@ kube_ctx_namespace() {
   CUR_NS=$ns
 }
 
-# All listable resource kinds into RES_LIST (cached per session — API discovery
+# All listable resource kinds into RES_LIST (cached per session - API discovery
 # is a slow multi-request operation). Returns 1 + KUBE_ERR on failure.
 RES_CACHE=""
 kube_api_resources() {
@@ -105,7 +105,7 @@ kube_contexts() {
   return 0
 }
 
-# Switch the kubeconfig current-context (global, like kubectx — keeps every
+# Switch the kubeconfig current-context (global, like kubectx - keeps every
 # kubectl call consistent with the user's other terminals).
 kube_use_context() {
   [[ -n ${K9L_DEMO:-} ]] && return 0
@@ -138,14 +138,14 @@ kube_namespaces() {
 
 # Fetch RESOURCE into TABLE_HEADER/TABLE_ROWS.
 # On failure: keep the previous rows on screen, set KUBE_ERR, return 1.
-# Always strip \r — kubectl on Windows can emit CRLF.
+# Always strip \r - kubectl on Windows can emit CRLF.
 kube_fetch() {
   if [[ -n ${K9L_DEMO:-} ]]; then
     demo_data
     return 0
   fi
   local out rc line first=1 sort_arg=""
-  # events come back in random order by default — sort chronologically
+  # events come back in random order by default - sort chronologically
   case "$RESOURCE" in
     events|event|ev|events.*) sort_arg=--sort-by=.metadata.creationTimestamp ;;
   esac

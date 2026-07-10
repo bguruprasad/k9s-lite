@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# k9s-lite — a k9s-style Kubernetes TUI in pure bash + kubectl.
+# k9s-lite - a k9s-style Kubernetes TUI in pure bash + kubectl.
 # Designed for restricted environments: Windows Git Bash (mintty), Linux, macOS.
 # No dependencies beyond bash 3.2+, kubectl, and standard coreutils.
 #
@@ -80,10 +80,10 @@ K9L_TAG="k9s, but lite"
 # add_info_line <label> <value> [<key> <action>]...
 # k9s layout: identity block left, key map right-aligned to the screen edge,
 # ASCII logo centered when the gap fits it. Plain text is padded/measured
-# first, colors wrapped after — printf field widths count escape bytes.
+# first, colors wrapped after - printf field widths count escape bytes.
 add_info_line() {
   local lab val s left_c right_c mid sp
-  # narrow terminals: no room for the key map — identity block only, value
+  # narrow terminals: no room for the key map - identity block only, value
   # column shrunk to fit (keys stay discoverable via the footer)
   local valw=24
   if (( COLS < 80 )); then
@@ -290,7 +290,7 @@ open_help() {
   DETAIL_VIEW=1
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
-  # TABLE_TITLE must match TABLE_TITLE_C's visible width — it drives the border math
+  # TABLE_TITLE must match TABLE_TITLE_C's visible width - it drives the border math
   TABLE_TITLE="k9s-lite v$K9L_VERSION - key reference"
   TABLE_TITLE_C=$'\e[1;36m'"k9s-lite "$'\e[22;35m'"v$K9L_VERSION - key reference"$'\e[0m'
   TABLE_HEADER="k9s, but lite"
@@ -305,7 +305,7 @@ open_help() {
     "  v:            events for the selected object"
     "  l:            logs, live follow in less +F (Ctrl-C to scroll/search)"
     "  p:            previous-container logs (crash loops)"
-    "  u:            route URL (OpenShift :routes) — shows https://host/path, copies to clipboard"
+    "  u:            route URL (OpenShift :routes) - shows https://host/path, copies to clipboard"
     ""
     "Operate:"
     "  s:            shell into pod (bash, falls back to sh)"
@@ -334,7 +334,7 @@ open_help() {
   CURSOR=0; SCROLL=0
 }
 
-# --- pickers (ns / ctx) — share the table view state
+# --- pickers (ns / ctx) - share the table view state
 picker_enter() { # $1 kind  $2 title  $3 header  $4 current-value; TABLE_ROWS preset
   MODE=picker
   PICKER_KIND=$1
@@ -352,8 +352,8 @@ picker_enter() { # $1 kind  $2 title  $3 header  $4 current-value; TABLE_ROWS pr
 
 open_ns_picker() {
   if ! kube_namespaces; then
-    # namespace listing is often Forbidden with ns-scoped RBAC — type it instead
-    prompt_input "can't list namespaces (${KUBE_ERR}) — enter namespace: "
+    # namespace listing is often Forbidden with ns-scoped RBAC - type it instead
+    prompt_input "can't list namespaces (${KUBE_ERR}) - enter namespace: "
     if [[ -n $REPLY_STR ]]; then
       CUR_NS=$REPLY_STR
       CURSOR=0; SCROLL=0
@@ -496,7 +496,7 @@ main() {
     if key_read "$REFRESH_SECS"; then
       dispatch "$KEY"
     elif [[ $MODE == table ]]; then
-      refresh            # tick refresh only in table mode — don't clobber the picker
+      refresh            # tick refresh only in table mode - don't clobber the picker
     fi
     term_update_size     # mintty resize isn't signalled; poll each pass
     (( INFO_COLS != COLS )) && build_info

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Concatenate k9s-lite.sh + lib/*.sh into one self-contained script — for
+# Concatenate k9s-lite.sh + lib/*.sh into one self-contained script - for
 # environments where you can only carry a single file onto a box (no git
 # clone, no directory structure). Output: dist/k9s-lite.dist.sh
 #

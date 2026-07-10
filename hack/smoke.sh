@@ -18,12 +18,12 @@ trap 'rm -f "$OUT"' EXIT
 
 # Root-caused via the debug logging below: on some CI runs, script(1)'s pty
 # isn't fully attached yet when this pipe's first byte arrives, and that byte
-# (sometimes the whole first burst) gets silently dropped — confirmed by
+# (sometimes the whole first burst) gets silently dropped - confirmed by
 # watching $OUT grow steadily for 60s while the cursor never left row 0, i.e.
 # the app was alive and redrawing on its normal refresh tick, just never
 # received a single keystroke. Fix: send the whole sequence multiple times
 # with growing initial delay. Once one full pass lands, `q` ends the app and
-# the marker-poll loop below exits immediately — the repeats are a no-op then.
+# the marker-poll loop below exits immediately - the repeats are a no-op then.
 feed() {
   local n
   for n in 1 2 3 4 5 6; do
@@ -38,12 +38,12 @@ feed() {
 export K9L_DEMO=1 TERM=xterm-256color
 
 # Poll $OUT for the app's own alt-screen-restore marker instead of waiting on
-# script(1)'s process exit — measures our app's real behavior, not a wrapper
+# script(1)'s process exit - measures our app's real behavior, not a wrapper
 # process's teardown timing. This failed twice transiently on macos-latest
 # runners early on (exactly at the timeout cap, each time); confirmed via the
 # debug lines below that on a normal run the marker appears in 4-5s on every
 # OS, so the transient failures were runner-fleet flakiness, not a real hang.
-# Keep the debug logging — cheap, and decisive if it flakes again.
+# Keep the debug logging - cheap, and decisive if it flakes again.
 CAP=75   # worst case: 6 feed attempts with 1..6s growing delay ≈ 21s + slack
 : > "$OUT"
 start_ts=$(date +%s)
@@ -76,7 +76,7 @@ kill "$run_pid" 2>/dev/null
 wait "$run_pid" 2>/dev/null
 
 if (( waited >= CAP )) && ! grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
-  echo "FAIL: smoke test's clean-exit marker never appeared within ${CAP}s — partial output:"
+  echo "FAIL: smoke test's clean-exit marker never appeared within ${CAP}s - partial output:"
   cat "$OUT"
   exit 1
 fi

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="440" alt="k9l — k9s, but lite"/>
+  <img src="assets/logo.svg" width="440" alt="k9l - k9s, but lite"/>
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 # k9s-lite
 
 A [k9s](https://k9scli.io/)-style terminal UI for Kubernetes in **pure Bash + kubectl**.
-No Go binary, no tview/tcell, no jq — nothing to install. Built for locked-down
+No Go binary, no tview/tcell, no jq - nothing to install. Built for locked-down
 environments (corporate Windows machines with only Git Bash, jump hosts, minimal
 containers) where the real k9s isn't available.
 
@@ -19,7 +19,7 @@ containers) where the real k9s isn't available.
 
 ## Quick start
 
-Grab the single-file build from the [releases page](../../releases) and run it —
+Grab the single-file build from the [releases page](../../releases) and run it -
 that one script is the entire program. Pin a specific version (recommended,
 especially where you need to know exactly what you're running):
 
@@ -71,8 +71,8 @@ Press `?` inside the app for this list, always up to date.
 |-----|--------|
 | `j`/`k`, arrows, mouse wheel | move cursor |
 | `g` / `G`, PgUp / PgDn | top / bottom / page |
-| `:` | command mode — switch resource: `:po` `:svc` `:deploy` `:sts` `:cm` `:secret` `:events` `:routes` … any kind or kubectl shortname |
-| `a` | resource browser — pick from every kind the cluster supports (CRDs included) |
+| `:` | command mode - switch resource: `:po` `:svc` `:deploy` `:sts` `:cm` `:secret` `:events` `:routes` … any kind or kubectl shortname |
+| `a` | resource browser - pick from every kind the cluster supports (CRDs included) |
 | `/` | filter rows (case-insensitive); `Esc` clears |
 | `n` | namespace picker (typed entry if listing is Forbidden) |
 | `c` | context picker (switches kubeconfig current-context) |
@@ -83,13 +83,13 @@ Press `?` inside the app for this list, always up to date.
 
 | Key | Action |
 |-----|--------|
-| `Enter` | describe rendered inside the box — colorized, scrollable; `Esc` back |
+| `Enter` | describe rendered inside the box - colorized, scrollable; `Esc` back |
 | `d` | describe (plain, in pager) |
 | `y` | YAML (pager) |
 | `v` | events for the selected object, oldest→newest |
-| `l` | logs, live follow in `less +F` — `Ctrl-C` stops following (scroll/search), `q` returns |
+| `l` | logs, live follow in `less +F` - `Ctrl-C` stops following (scroll/search), `q` returns |
 | `p` | previous-container logs (crash loops) |
-| `u` | route URL (OpenShift `:routes`) — shows `https://host/path`, copies to clipboard |
+| `u` | route URL (OpenShift `:routes`) - shows `https://host/path`, copies to clipboard |
 
 ### Operate
 
@@ -103,25 +103,25 @@ Press `?` inside the app for this list, always up to date.
 
 One flag: `-n <ns>` / `--namespace <ns>`. The starting namespace resolves as:
 flag → namespace set on your kubeconfig context → `default`. The view stays
-locked to that one namespace unless you explicitly toggle `0` — by design,
+locked to that one namespace unless you explicitly toggle `0` - by design,
 since many users only have RBAC access to specific namespaces.
 
 Environment variables:
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `K9L_KUBECTL` | `kubectl` | CLI to drive — set `oc` for OpenShift |
+| `K9L_KUBECTL` | `kubectl` | CLI to drive - set `oc` for OpenShift |
 | `K9L_REFRESH` | `2` | auto-refresh interval in seconds (raise it on slow VPNs) |
 | `K9L_DEMO` | unset | `1` = built-in demo data, no cluster needed |
 | `K9L_ASCII` | unset | `1` = plain `+---+` borders for terminals without Unicode box drawing |
 
-Both forms take the same flags and variables — the examples work identically
+Both forms take the same flags and variables - the examples work identically
 with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
 
 ## Why pure Bash?
 
 - **Zero dependencies** beyond `bash`, `kubectl`, and the coreutils that ship
-  with Git Bash / any Linux / macOS. kubectl does all parsing and auth —
+  with Git Bash / any Linux / macOS. kubectl does all parsing and auth -
   including corporate SSO/OIDC setups that are painful to reimplement.
 - **RBAC-friendly**: designed for users who can only see specific namespaces.
   Nothing requires cluster-wide permissions; when listing namespaces is
@@ -133,10 +133,10 @@ with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
 ## How it works
 
 kubectl is the parser: lists are `kubectl get -o wide`, discovery is implicit
-(any resource kind kubectl knows works in `:` command mode — CRDs and OpenShift
+(any resource kind kubectl knows works in `:` command mode - CRDs and OpenShift
 routes included), and events are sorted server-side with `--sort-by`. The UI is
 raw ANSI escapes with a full redraw per tick; the event loop is a single
-`read -t <refresh>` — the timeout doubles as the polling timer.
+`read -t <refresh>` - the timeout doubles as the polling timer.
 
 Interactive actions (logs, exec, edit, pagers) suspend the alt screen, hand the
 real terminal to the child, and restore raw mode after. Pager-based views
@@ -154,7 +154,7 @@ header; on narrow screens everything collapses gracefully. Colors follow k9s.
   automatically under mintty.
 - All kubectl output is stripped of `\r`; the repo enforces LF endings.
 - Terminal size is polled every tick (mintty doesn't deliver SIGWINCH to bash).
-- No subshells in the render loop — process forks are expensive under Git Bash.
+- No subshells in the render loop - process forks are expensive under Git Bash.
 
 ## Development
 

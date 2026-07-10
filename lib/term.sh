@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# term.sh — terminal init/cleanup, size detection, key reading.
+# term.sh - terminal init/cleanup, size detection, key reading.
 # Raw ANSI escapes only; no tput dependency (mintty-safe baseline).
 # Works on bash 3.2+ (macOS /bin/bash) and bash 5 (Git Bash, Linux).
 
@@ -8,7 +8,7 @@ COLS=80
 KEY=""
 
 # bash 3.2 rejects fractional read timeouts; use 1s there. Costs only a bare-ESC
-# press feeling slower — escape *sequences* arrive as a burst so decoding is unaffected.
+# press feeling slower - escape *sequences* arrive as a burst so decoding is unaffected.
 if (( BASH_VERSINFO[0] >= 4 )); then ESC_T=0.05; else ESC_T=1; fi
 
 term_init() {
@@ -27,7 +27,7 @@ term_cleanup() {
   stty sane 2>/dev/null || true
 }
 
-# mintty doesn't reliably deliver SIGWINCH into bash — poll size every tick instead
+# mintty doesn't reliably deliver SIGWINCH into bash - poll size every tick instead
 term_update_size() {
   local sz
   sz=$(stty size 2>/dev/null) || sz=""
@@ -38,7 +38,7 @@ term_update_size() {
     ROWS=${LINES:-24}
     COLS=${COLUMNS:-80}
   fi
-  # some ptys report 0x0 (e.g. script(1) without a real terminal) — prefer the
+  # some ptys report 0x0 (e.g. script(1) without a real terminal) - prefer the
   # LINES/COLUMNS env if sane, else fall back to 80x24
   if (( ROWS < 5 )); then
     case ${LINES:-} in ''|*[!0-9]*) ;; *) ROWS=$LINES ;; esac
@@ -110,9 +110,9 @@ key_read() {
   return 0
 }
 
-# pad <text> — truncate/pad to terminal width into $PADDED.
+# pad <text> - truncate/pad to terminal width into $PADDED.
 # printf -v, NOT $(...): subshells are forks, and forks are slow under Git Bash
-# on Windows — never spawn one per row in the draw loop.
+# on Windows - never spawn one per row in the draw loop.
 pad() {
   printf -v PADDED '%-*.*s' "$COLS" "$COLS" "$1"
 }

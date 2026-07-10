@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# table.sh — table view state and rendering.
+# table.sh - table view state and rendering.
 # State: TABLE_ROWS (one preformatted line per item), CURSOR, SCROLL.
 
 TABLE_TITLE=""
@@ -12,7 +12,7 @@ TABLE_FOOT=""      # overrides the default footer hint when set (picker mode)
 CURSOR=0
 SCROLL=0
 ROW_SGR=""
-DETAIL_VIEW=""     # when set: rows are describe-style text — cyan "Key:" prefixes,
+DETAIL_VIEW=""     # when set: rows are describe-style text - cyan "Key:" prefixes,
                    # no cursor bar, no column re-flow
 DKEY_SGR=$'\e[36m'
 
@@ -30,7 +30,7 @@ table_move() {
 table_top()    { CURSOR=0; }
 table_bottom() { CURSOR=$(( ${#TABLE_ROWS[@]} - 1 )); }
 
-# row_color <row> — set ROW_SGR by status keyword (no subshell)
+# row_color <row> - set ROW_SGR by status keyword (no subshell)
 row_color() {
   case "$1" in
     *CrashLoopBackOff*|*Error*|*Failed*|*Evicted*|*ImagePull*) ROW_SGR=$'\e[31m' ;;
@@ -44,7 +44,7 @@ row_color() {
 # Re-flow kubectl's tabwriter columns to span the full box width. Column
 # boundaries come from the header (rows are aligned identically by kubectl);
 # spare width is distributed proportionally to each column's natural width.
-# Pure string ops — zero forks, safe to run per refresh/resize.
+# Pure string ops - zero forks, safe to run per refresh/resize.
 LAYOUT_COLS=0
 table_reflow() {
   LAYOUT_COLS=$COLS
@@ -121,7 +121,7 @@ table_reflow() {
   return 0
 }
 
-# box_rule <n> — n box-horizontal chars into $RULE (string ops only, no forks)
+# box_rule <n> - n box-horizontal chars into $RULE (string ops only, no forks)
 box_rule() {
   printf -v RULE '%*s' "$1" ''
   RULE=${RULE// /$BOX_H}
@@ -155,7 +155,7 @@ table_draw() {
 
   local buf=$'\e[H' line i row title tlen left right
 
-  # info lines carry their own segment colors and fixed-width padding —
+  # info lines carry their own segment colors and fixed-width padding -
   # don't pad here (printf width would count the escape bytes)
   for (( i = 0; i < info_n; i++ )); do
     buf+="${INFO_LINES[i]}"$'\e[K\r\n'
@@ -207,7 +207,7 @@ table_draw() {
           buf+="${BOX_V}${ROW_SGR}${line}"$'\e[0m'"${BOX_V}"
         fi
       elif (( i == CURSOR )); then
-        # selection bar: white background, black text — reliable contrast
+        # selection bar: white background, black text - reliable contrast
         # across terminal themes (bright-blue backgrounds render illegibly
         # in some, e.g. macOS Terminal.app default profiles)
         printf -v line '%-*.*s' "$inner" "$inner" ">${row}"

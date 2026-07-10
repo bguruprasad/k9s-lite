@@ -1,3 +1,3 @@
 # SC2034 "appears unused": state variables are set in one lib file and read in
-# another (term/table/kube/actions are sourced into one process) — false positive.
+# another (term/table/kube/actions are sourced into one process) - false positive.
 disable=SC2034

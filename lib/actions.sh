@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# actions.sh — operations on the selected row (describe, yaml, logs, exec, edit,
+# actions.sh - operations on the selected row (describe, yaml, logs, exec, edit,
 # delete). Interactive ones suspend the TUI, hand the real terminal to the child
 # command, then restore raw mode and the alt screen.
 
@@ -24,7 +24,7 @@ tui_resume() {
 run_pager() {
   tui_suspend
   if [[ ${TERM:-dumb} == dumb ]]; then
-    # less can't drive a dumb terminal — print plainly and hold
+    # less can't drive a dumb terminal - print plainly and hold
     "$@" 2>&1
     printf '\n--- press any key ---'
     IFS= read -rsn1 _ || true
@@ -110,7 +110,7 @@ act_route_url() {
   case "$RESOURCE" in
     route|routes|route.*|routes.*) ;;
     *)
-      TABLE_MSG="u (route URL) works on the routes view — try :routes"
+      TABLE_MSG="u (route URL) works on the routes view - try :routes"
       return 0 ;;
   esac
   local out proto=http url copied=""
@@ -130,7 +130,7 @@ act_route_url() {
   elif command -v xclip >/dev/null 2>&1; then           # Linux/X11
     printf '%s' "$url" | xclip -selection clipboard 2>/dev/null && copied="  (copied to clipboard)"
   fi
-  printf '\e[%d;1H\e[0m\e[K %s%s — press any key' "$ROWS" "$url" "$copied"
+  printf '\e[%d;1H\e[0m\e[K %s%s - press any key' "$ROWS" "$url" "$copied"
   IFS= read -rsn1 _ || true
 }
 
