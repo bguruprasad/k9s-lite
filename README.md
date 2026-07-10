@@ -49,7 +49,7 @@ centered in the header. Everything re-flows live on resize.
 ## Install
 
 ```sh
-git clone <repo-url> && cd k9s-lite
+git clone https://github.com/bguruprasad/k9s-lite.git && cd k9s-lite
 bash k9s-lite.sh
 ```
 
