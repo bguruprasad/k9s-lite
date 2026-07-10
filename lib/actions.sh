@@ -102,6 +102,38 @@ act_edit() {
   run_fg $WINPTY $KUBECTL_BIN edit "$RESOURCE/$SEL_NAME" -n "$SEL_NS"
 }
 
+# OpenShift route URL: assemble https://host/path from the route spec, copy
+# to the clipboard when a clipboard tool exists, and show it until a key is
+# pressed. TLS termination present => https.
+act_route_url() {
+  act_guard || return 0
+  case "$RESOURCE" in
+    route|routes|route.*|routes.*) ;;
+    *)
+      TABLE_MSG="u (route URL) works on the routes view — try :routes"
+      return 0 ;;
+  esac
+  local out proto=http url copied=""
+  out=$($KUBECTL_BIN get route "$SEL_NAME" -n "$SEL_NS" \
+        -o 'jsonpath={.spec.tls.termination}|{.spec.host}{.spec.path}' 2>&1)
+  out=${out//$'\r'/}
+  if [[ $out != *"|"* ]]; then
+    TABLE_MSG="ERROR: ${out%%$'\n'*}"
+    return 0
+  fi
+  [[ -n ${out%%|*} ]] && proto=https
+  url="${proto}://${out#*|}"
+  if command -v clip.exe >/dev/null 2>&1; then          # Git Bash / WSL
+    printf '%s' "$url" | clip.exe 2>/dev/null && copied="  (copied to clipboard)"
+  elif command -v pbcopy >/dev/null 2>&1; then          # macOS
+    printf '%s' "$url" | pbcopy 2>/dev/null && copied="  (copied to clipboard)"
+  elif command -v xclip >/dev/null 2>&1; then           # Linux/X11
+    printf '%s' "$url" | xclip -selection clipboard 2>/dev/null && copied="  (copied to clipboard)"
+  fi
+  printf '\e[%d;1H\e[0m\e[K %s%s — press any key' "$ROWS" "$url" "$copied"
+  IFS= read -rsn1 _ || true
+}
+
 # events for the selected object only, oldest first (newest at the bottom)
 act_events() {
   act_guard || return 0

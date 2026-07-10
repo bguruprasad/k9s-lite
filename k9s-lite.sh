@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.9.4"
+K9L_VERSION="0.9.5"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -305,6 +305,7 @@ open_help() {
     "  v:            events for the selected object"
     "  l:            logs, live follow in less +F (Ctrl-C to scroll/search)"
     "  p:            previous-container logs (crash loops)"
+    "  u:            route URL (OpenShift :routes) — shows https://host/path, copies to clipboard"
     ""
     "Operate:"
     "  s:            shell into pod (bash, falls back to sh)"
@@ -466,6 +467,7 @@ dispatch() {
     v)        act_events ;;
     l)        act_logs ;;
     p)        act_logs_prev ;;
+    u)        act_route_url ;;
     s)        act_shell ;;
     e)        act_edit ;;
     $'\004')  act_delete ;;    # Ctrl-D

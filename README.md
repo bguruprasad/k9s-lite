@@ -24,13 +24,27 @@ that one script is the entire program. Pin a specific version (recommended,
 especially where you need to know exactly what you're running):
 
 ```sh
-curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.4/k9s-lite.dist.sh
+curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.5/k9s-lite.dist.sh
 bash k9s-lite.dist.sh -n my-namespace
 ```
 
 To always pull the newest release instead, use
 `releases/latest/download/k9s-lite.dist.sh` (note GitHub's path shapes:
 `latest/download/` vs `download/<tag>/`).
+
+**curl blocked?** Corporate proxies often let browsers through but not CLI
+tools (curl in Git Bash doesn't use Windows' system proxy settings).
+Alternatives, in order of least friction:
+
+- Open the [releases page](../../releases) in your browser, download
+  `k9s-lite.dist.sh` from the release assets, then `bash k9s-lite.dist.sh`.
+- On Windows, PowerShell **does** use the system proxy:
+
+  ```powershell
+  Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.5/k9s-lite.dist.sh -OutFile k9s-lite.dist.sh
+  ```
+- Or tell curl about your proxy explicitly:
+  `curl -x http://your-proxy:8080 -LO <url>` (or set `https_proxy`).
 
 Make it feel like a real command:
 
@@ -75,6 +89,7 @@ Press `?` inside the app for this list, always up to date.
 | `v` | events for the selected object, oldest→newest |
 | `l` | logs, live follow in `less +F` — `Ctrl-C` stops following (scroll/search), `q` returns |
 | `p` | previous-container logs (crash loops) |
+| `u` | route URL (OpenShift `:routes`) — shows `https://host/path`, copies to clipboard |
 
 ### Operate
 
@@ -112,7 +127,8 @@ with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
   Nothing requires cluster-wide permissions; when listing namespaces is
   Forbidden, you type the namespace name instead.
 - **OpenShift-aware**: with `K9L_KUBECTL=oc`, `:routes` works via API
-  discovery and the namespace picker uses RBAC-filtered `projects`.
+  discovery, `u` on a route row gives you its full URL (TLS-aware, copied
+  to your clipboard), and the namespace picker uses RBAC-filtered `projects`.
 
 ## How it works
 
