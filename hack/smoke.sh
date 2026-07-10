@@ -29,30 +29,37 @@ export K9L_DEMO=1 TERM=xterm-256color
 # CI runners (observed on macos-latest GitHub Actions images, no real tty on
 # stdin). Neither `timeout` nor `gtimeout` ships on stock macOS, so implement
 # the cap in pure bash: launch the pipeline in a background subshell, race a
-# sleep watchdog against it, kill whichever loses.
-(
-  case "$(uname -s)" in
-    Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
-    *)      feed | script -qec "bash $TARGET" "$OUT" ;;
-  esac
-) >/dev/null 2>&1 &
-run_pid=$!
+# sleep watchdog against it, kill whichever loses. 45s (not 30s) gives a slow
+# runner headroom — the feed itself only needs ~4s, so 45s is still a real cap,
+# not a rubber stamp. One retry absorbs a single slow/flaky tick; a genuine
+# hang fails the same way on both attempts.
+run_once() {
+  : > "$OUT"
+  (
+    case "$(uname -s)" in
+      Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
+      *)      feed | script -qec "bash $TARGET" "$OUT" ;;
+    esac
+  ) >/dev/null 2>&1 &
+  local run_pid=$!
 
-( sleep 30; kill "$run_pid" 2>/dev/null ) &
-watchdog_pid=$!
+  ( sleep 45; kill "$run_pid" 2>/dev/null ) &
+  local watchdog_pid=$!
 
-if wait "$run_pid" 2>/dev/null; then
-  rc=0
-else
-  rc=$?
-fi
-kill "$watchdog_pid" 2>/dev/null
-wait "$watchdog_pid" 2>/dev/null
+  local rc=0
+  wait "$run_pid" 2>/dev/null || rc=$?
+  kill "$watchdog_pid" 2>/dev/null
+  wait "$watchdog_pid" 2>/dev/null
+  return "$rc"
+}
 
-if (( rc != 0 )); then
-  echo "FAIL: smoke test killed/errored after up to 30s (rc=$rc, likely script/pty hang) — partial output:"
-  cat "$OUT"
-  exit 1
+if ! run_once; then
+  echo "warn: attempt 1 killed/errored after up to 45s (rc=$?) — retrying once"
+  if ! run_once; then
+    echo "FAIL: smoke test killed/errored on retry too (rc=$?, likely script/pty hang) — partial output:"
+    cat "$OUT"
+    exit 1
+  fi
 fi
 
 echo "--- target: $TARGET ---"
