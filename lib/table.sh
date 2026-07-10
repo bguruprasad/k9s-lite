@@ -207,9 +207,11 @@ table_draw() {
           buf+="${BOX_V}${ROW_SGR}${line}"$'\e[0m'"${BOX_V}"
         fi
       elif (( i == CURSOR )); then
-        # k9s-style selection bar: light-blue background, black text
+        # selection bar: white background, black text — reliable contrast
+        # across terminal themes (bright-blue backgrounds render illegibly
+        # in some, e.g. macOS Terminal.app default profiles)
         printf -v line '%-*.*s' "$inner" "$inner" ">${row}"
-        buf+="${BOX_V}"$'\e[104;30m'"$line"$'\e[0m'"${BOX_V}"
+        buf+="${BOX_V}"$'\e[107;30m'"$line"$'\e[0m'"${BOX_V}"
       else
         row_color "$row"
         printf -v line '%-*.*s' "$inner" "$inner" " ${row}"
