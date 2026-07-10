@@ -37,7 +37,14 @@ term_update_size() {
     ROWS=${LINES:-24}
     COLS=${COLUMNS:-80}
   fi
-  # some ptys report 0x0 (e.g. script(1) without a real terminal) — fall back sane
+  # some ptys report 0x0 (e.g. script(1) without a real terminal) — prefer the
+  # LINES/COLUMNS env if sane, else fall back to 80x24
+  if (( ROWS < 5 )); then
+    case ${LINES:-} in ''|*[!0-9]*) ;; *) ROWS=$LINES ;; esac
+  fi
+  if (( COLS < 20 )); then
+    case ${COLUMNS:-} in ''|*[!0-9]*) ;; *) COLS=$COLUMNS ;; esac
+  fi
   (( ROWS < 5 ))  && ROWS=24
   (( COLS < 20 )) && COLS=80
 }

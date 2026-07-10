@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.7.1"
+K9L_VERSION="0.8.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -68,31 +68,69 @@ C_KEY=$'\e[94m'
 C_ACT=$'\e[90m'
 C_RST=$'\e[0m'
 
+K9L_LOGO=(
+'| | __  ___   _ '
+'| |/ / / _ \ | |'
+'|   <  \__, || |'
+'|_|\_\   /_/ |_|'
+)
+K9L_TAG="k9s, but lite"
+
 # add_info_line <label> <value> [<key> <action>]...
-# Pads each segment as plain text BEFORE wrapping in colors — printf field
-# widths count escape bytes, so colored strings can't be padded directly.
+# k9s layout: identity block left, key map right-aligned to the screen edge,
+# ASCII logo centered when the gap fits it. Plain text is padded/measured
+# first, colors wrapped after — printf field widths count escape bytes.
 add_info_line() {
-  local lab val s l
+  local lab val s left_c right_c mid sp
   printf -v lab '%-9s' "$1"
   printf -v val '%-24.24s' "$2"
-  l=" ${C_LBL}${lab}${C_RST} ${C_VAL}${val}${C_RST}"
+  left_c=" ${C_LBL}${lab}${C_RST} ${C_VAL}${val}${C_RST}"
+  local left_w=$(( 2 + 9 + 24 ))
   shift 2
+  right_c=""
+  local right_w=0
   while (( $# >= 2 )); do
     printf -v s '%-4s' "$1"
-    l+="${C_KEY}${s}${C_RST} "
+    right_c+="${C_KEY}${s}${C_RST} "
     printf -v s '%-9s' "$2"
-    l+="${C_ACT}${s}${C_RST} "
+    right_c+="${C_ACT}${s}${C_RST} "
+    right_w=$(( right_w + 15 ))
     shift 2
   done
-  INFO_LINES+=("$l")
+  mid=$(( COLS - left_w - right_w ))
+  (( mid < 0 )) && mid=0
+  local logo_w=${#K9L_LOGO[0]} line_i=${#INFO_LINES[@]} l r
+  if (( mid >= logo_w + 4 && line_i < ${#K9L_LOGO[@]} )); then
+    l=$(( (mid - logo_w) / 2 )); r=$(( mid - logo_w - l ))
+    printf -v sp '%*s' "$l" ''
+    left_c+="$sp${C_LBL}${K9L_LOGO[line_i]}${C_RST}"
+    printf -v sp '%*s' "$r" ''
+    left_c+="$sp"
+    INFO_SHOW_TAG=1
+  else
+    printf -v sp '%*s' "$mid" ''
+    left_c+="$sp"
+  fi
+  INFO_LINES+=("${left_c}${right_c}")
 }
 
+INFO_COLS=0
 build_info() {
   INFO_LINES=()
+  INFO_SHOW_TAG=0
+  INFO_COLS=$COLS
   add_info_line "Context:" "$CUR_CTX"                      "<d>"  "describe"  "<l>"  "logs"   "<:>" "resource"
   add_info_line "Cluster:" "$CUR_CLUSTER"                  "<y>"  "yaml"      "<s>"  "shell"  "</>" "filter"
   add_info_line "User:"    "$CUR_USER"                     "<v>"  "events"    "<e>"  "edit"   "<n>" "namespace"
   add_info_line "Ver:"     "v$K9L_VERSION (k8s $K8S_VER)"  "<p>"  "prev logs" "<^d>" "delete" "<q>" "quit"
+  if (( INFO_SHOW_TAG )); then
+    # tagline centered under the logo
+    local logo_w=${#K9L_LOGO[0]} mid=$(( COLS - 35 - 45 )) sp pos
+    pos=$(( 35 + (mid - logo_w) / 2 + (logo_w - ${#K9L_TAG}) / 2 ))
+    (( pos < 0 )) && pos=0
+    printf -v sp '%*s' "$pos" ''
+    INFO_LINES+=("${sp}${C_ACT}${K9L_TAG}${C_RST}")
+  fi
 }
 
 # k9s-style title: cyan resource, magenta (namespace [/filter]); the renderer
@@ -115,6 +153,7 @@ refresh() {
     shopt -u nocasematch
     if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
   fi
+  table_reflow
   set_title
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"
@@ -339,6 +378,7 @@ main() {
       refresh            # tick refresh only in table mode — don't clobber the picker
     fi
     term_update_size     # mintty resize isn't signalled; poll each pass
+    (( INFO_COLS != COLS )) && build_info
     table_draw
   done
 }

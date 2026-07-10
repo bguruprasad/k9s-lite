@@ -37,6 +37,85 @@ row_color() {
   esac
 }
 
+# Re-flow kubectl's tabwriter columns to span the full box width. Column
+# boundaries come from the header (rows are aligned identically by kubectl);
+# spare width is distributed proportionally to each column's natural width.
+# Pure string ops — zero forks, safe to run per refresh/resize.
+LAYOUT_COLS=0
+table_reflow() {
+  LAYOUT_COLS=$COLS
+  local inner=$(( COLS - 2 ))
+  [[ -z $TABLE_HEADER ]] && return 0
+
+  # column start positions: a non-space preceded by >=2 spaces starts a column
+  local h=$TABLE_HEADER hlen=${#TABLE_HEADER}
+  local starts=(0) i c gapn=0
+  for (( i = 1; i < hlen; i++ )); do
+    c=${h:i:1}
+    if [[ $c == ' ' ]]; then
+      (( gapn++ ))
+    else
+      (( gapn >= 2 )) && starts+=("$i")
+      gapn=0
+    fi
+  done
+  local ncols=${#starts[@]}
+  (( ncols < 2 )) && return 0
+
+  # pass 1: natural (trimmed) width per column, across header + rows
+  local n=${#TABLE_ROWS[@]} r j row cell sp start clen total=0 maxw=()
+  for (( j = 0; j < ncols; j++ )); do maxw[j]=0; done
+  for (( r = -1; r < n; r++ )); do
+    if (( r < 0 )); then row=$h; else row=${TABLE_ROWS[r]}; fi
+    for (( j = 0; j < ncols; j++ )); do
+      start=${starts[j]}
+      if (( j + 1 < ncols )); then
+        clen=$(( ${starts[j+1]} - start )); cell=${row:start:clen}
+      else
+        cell=${row:start}
+      fi
+      sp=${cell##*[! ]}; cell=${cell%"$sp"}
+      (( ${#cell} > maxw[j] )) && maxw[j]=${#cell}
+    done
+  done
+  for (( j = 0; j < ncols; j++ )); do total=$(( total + maxw[j] )); done
+
+  # distribute spare width proportionally (draw adds 1 leading char)
+  local gap=3 avail extra width=()
+  avail=$(( inner - 1 - total - gap * (ncols - 1) ))
+  (( avail < 0 )) && avail=0
+  for (( j = 0; j < ncols; j++ )); do
+    extra=0
+    (( total > 0 )) && extra=$(( avail * maxw[j] / total ))
+    width[j]=$(( maxw[j] + extra ))
+  done
+
+  # pass 2: rebuild header + rows at the new widths
+  local out seg new=()
+  for (( r = -1; r < n; r++ )); do
+    if (( r < 0 )); then row=$h; else row=${TABLE_ROWS[r]}; fi
+    out=""
+    for (( j = 0; j < ncols; j++ )); do
+      start=${starts[j]}
+      if (( j + 1 < ncols )); then
+        clen=$(( ${starts[j+1]} - start )); cell=${row:start:clen}
+      else
+        cell=${row:start}
+      fi
+      sp=${cell##*[! ]}; cell=${cell%"$sp"}
+      if (( j + 1 < ncols )); then
+        printf -v seg '%-*s' $(( width[j] + gap )) "$cell"
+        out+=$seg
+      else
+        out+=$cell
+      fi
+    done
+    if (( r < 0 )); then TABLE_HEADER=$out; else new+=("$out"); fi
+  done
+  if (( n > 0 )); then TABLE_ROWS=("${new[@]}"); fi
+  return 0
+}
+
 # box_rule <n> — n box-horizontal chars into $RULE (string ops only, no forks)
 box_rule() {
   printf -v RULE '%*s' "$1" ''
@@ -46,6 +125,7 @@ box_rule() {
 # Full redraw, built as one string and printed once (single write = no flicker).
 # \e[K per line + \e[J at the end instead of \e[2J avoids full-screen flash.
 table_draw() {
+  (( LAYOUT_COLS != COLS )) && table_reflow   # terminal was resized
   local msg_lines=0 info_n=${#INFO_LINES[@]}
   [[ -n $TABLE_MSG ]] && msg_lines=1
   local inner=$(( COLS - 2 ))
