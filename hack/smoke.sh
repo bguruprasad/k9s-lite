@@ -17,10 +17,35 @@ feed() {
 
 export K9L_DEMO=1 TERM=xterm-256color
 
-case "$(uname -s)" in
-  Darwin) feed | script -q "$OUT" /bin/bash k9s-lite.sh ;;
-  *)      feed | script -qec "bash k9s-lite.sh" "$OUT" ;;
-esac >/dev/null 2>&1 || true
+# Hard wall-clock cap: BSD script(1) can hang waiting on pty/tty setup on some
+# CI runners (observed on macos-latest GitHub Actions images, no real tty on
+# stdin). Neither `timeout` nor `gtimeout` ships on stock macOS, so implement
+# the cap in pure bash: launch the pipeline in a background subshell, race a
+# sleep watchdog against it, kill whichever loses.
+(
+  case "$(uname -s)" in
+    Darwin) feed | script -q "$OUT" /bin/bash k9s-lite.sh ;;
+    *)      feed | script -qec "bash k9s-lite.sh" "$OUT" ;;
+  esac
+) >/dev/null 2>&1 &
+run_pid=$!
+
+( sleep 30; kill "$run_pid" 2>/dev/null ) &
+watchdog_pid=$!
+
+if wait "$run_pid" 2>/dev/null; then
+  rc=0
+else
+  rc=$?
+fi
+kill "$watchdog_pid" 2>/dev/null
+wait "$watchdog_pid" 2>/dev/null
+
+if (( rc != 0 )); then
+  echo "FAIL: smoke test killed/errored after up to 30s (rc=$rc, likely script/pty hang) — partial output:"
+  cat "$OUT"
+  exit 1
+fi
 
 fail=0
 check() {

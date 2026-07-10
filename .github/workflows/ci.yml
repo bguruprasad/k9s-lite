@@ -24,6 +24,9 @@ jobs:
         # macos exercises bash 3.2 (system /bin/bash), ubuntu exercises bash 5
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    # backstop: smoke.sh has its own 30s internal watchdog around the pty
+    # session, but cap the whole job too in case something else hangs
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: pty smoke test (demo mode)
