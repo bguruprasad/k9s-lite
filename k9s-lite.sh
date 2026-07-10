@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.9.5"
+K9L_VERSION="0.9.6"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -245,6 +245,18 @@ open_detail() {
   local out line
   out=$($KUBECTL_BIN describe "$RESOURCE" "$SEL_NAME" -n "$SEL_NS" 2>&1)
   out=${out//$'\r'/}
+  # OpenShift's describers (routes especially) tab-align their columns. The
+  # renderer pads by character count while the terminal draws a tab as up to
+  # 8 columns, which pushes the box border out of alignment - expand tabs to
+  # real 8-column stops first (expand(1) ships with Git Bash/macOS/Linux;
+  # crude 8-space fallback keeps the border intact if it's ever missing).
+  if [[ $out == *$'\t'* ]]; then
+    if command -v expand >/dev/null 2>&1; then
+      out=$(printf '%s\n' "$out" | expand)
+    else
+      out=${out//$'\t'/        }
+    fi
+  fi
   MODE=detail
   DETAIL_VIEW=1
   SAVED_CURSOR=$CURSOR
