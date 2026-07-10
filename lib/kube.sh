@@ -164,6 +164,8 @@ kube_fetch() {
   TABLE_ROWS=()
   while IFS= read -r line; do
     [[ -z $line ]] && continue
+    # kubectl prints this to stderr on success; don't let it become the header
+    [[ $line == "No resources found"* ]] && continue
     if (( first )); then
       TABLE_HEADER=$line
       first=0

@@ -9,7 +9,8 @@ containers) where the real k9s isn't available.
  Context:  kind-k9s-lite         <d> describe    <l> logs       <:>  resource
  Cluster:  kind-k9s-lite         <y> yaml        <s> shell      </>  filter
  User:     kind-k9s-lite         <v> events      <e> edit       <n>  namespace
- Ver:      v0.7.1 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
+ K9l Rev:  v0.8.1                <p> prev logs   <^d> delete    <q>  quit
+ K8s Rev:  v1.36.1
 ┌────────────────────────────── pods(demo)[8] ─────────────────────────────┐
 │ NAME                   READY   STATUS             RESTARTS      AGE      │
 │>api-748ffb4cd6-mnr6t   1/1     Running            0             97m      │
