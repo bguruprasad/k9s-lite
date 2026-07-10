@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.9.1"
+K9L_VERSION="0.9.2"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -284,6 +284,54 @@ dispatch_detail() {
   esac
 }
 
+# --- help view: rides on the detail-view machinery ('Key:' prefixes render cyan)
+open_help() {
+  MODE=detail
+  DETAIL_VIEW=1
+  SAVED_CURSOR=$CURSOR
+  SAVED_SCROLL=$SCROLL
+  TABLE_TITLE="help"
+  TABLE_TITLE_C=$'\e[1;36m'"k9s-lite "$'\e[22;35m'"v$K9L_VERSION — key reference"$'\e[0m'
+  TABLE_HEADER="k9s, but lite"
+  TABLE_MSG=""
+  TABLE_FOOT="j/k:scroll  q/Esc:back"
+  TABLE_ROWS=(
+    ""
+    "View:"
+    "  Enter:        describe rendered inside the box (scroll, Esc back)"
+    "  d:            describe in pager"
+    "  y:            yaml in pager"
+    "  v:            events for the selected object"
+    "  l:            logs, live follow in less +F (Ctrl-C to scroll/search)"
+    "  p:            previous-container logs (crash loops)"
+    ""
+    "Operate:"
+    "  s:            shell into pod (bash, falls back to sh)"
+    "  e:            kubectl edit"
+    "  Ctrl-D:       delete, asks for confirmation"
+    "  r:            refresh now (auto-refresh every ${REFRESH_SECS}s)"
+    "  0:            toggle all-namespaces (needs cluster-wide RBAC)"
+    ""
+    "Navigate:"
+    "  j / k / arrows / wheel / PgUp / PgDn / g / G"
+    "  : (cmd):      switch resource — :po :svc :deploy :sts :events :routes ..."
+    "  / (filter):   filter rows, case-insensitive; Esc clears"
+    "  a:            browse every resource kind the cluster supports"
+    "  n:            namespace picker (type a name if listing is forbidden)"
+    "  c:            context picker"
+    "  ?:            this help"
+    "  q / Esc:      back / quit"
+    ""
+    "Environment:"
+    "  K9L_KUBECTL=oc     drive OpenShift's oc instead of kubectl"
+    "  K9L_REFRESH=5      refresh interval in seconds"
+    "  K9L_NS via -n/--namespace flag at startup"
+    "  K9L_DEMO=1         demo data, no cluster needed"
+    "  K9L_ASCII=1        plain +--+ borders"
+  )
+  CURSOR=0; SCROLL=0
+}
+
 # --- pickers (ns / ctx) — share the table view state
 picker_enter() { # $1 kind  $2 title  $3 header  $4 current-value; TABLE_ROWS preset
   MODE=picker
@@ -396,6 +444,7 @@ dispatch() {
   fi
   case "$1" in
     ENTER)    open_detail ;;
+    \?)       open_help ;;
     q|Q)      RUNNING=0 ;;
     j|DOWN)   table_move 1 ;;
     k|UP)     table_move -1 ;;

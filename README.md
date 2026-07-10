@@ -86,6 +86,7 @@ K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
 | `n` | namespace picker (typed entry if listing is Forbidden) |
 | `c` | context picker (switches kubeconfig current-context) |
 | `0` | toggle all-namespaces (needs cluster-wide list RBAC) |
+| `?` | help — full key reference rendered in the box |
 | `r` | refresh now |
 | `q` | quit / cancel |
 

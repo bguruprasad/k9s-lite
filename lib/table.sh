@@ -227,7 +227,7 @@ table_draw() {
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"
   else
-    printf -v line ' a:resources  r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
+    printf -v line ' ?:help  a:resources  r:refresh  0:all-ns  g/G:top/btm  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
   fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'
