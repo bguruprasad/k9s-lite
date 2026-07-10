@@ -35,7 +35,9 @@ feed() {
   done
 }
 
-export K9L_DEMO=1 TERM=xterm-256color
+# K9L_CONFIG=/dev/null keeps the test hermetic - a developer's own
+# ~/.k9s-lite.conf must not change what the assertions see
+export K9L_DEMO=1 TERM=xterm-256color K9L_CONFIG=/dev/null
 
 # Poll $OUT for the app's own alt-screen-restore marker instead of waiting on
 # script(1)'s process exit - measures our app's real behavior, not a wrapper

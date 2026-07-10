@@ -102,9 +102,10 @@ Press `?` inside the app for this list, always up to date.
 ## Options
 
 One flag: `-n <ns>` / `--namespace <ns>`. The starting namespace resolves as:
-flag → namespace set on your kubeconfig context → `default`. The view stays
-locked to that one namespace unless you explicitly toggle `0` - by design,
-since many users only have RBAC access to specific namespaces.
+flag → `K9L_NAMESPACE` (env or config file) → namespace set on your kubeconfig
+context → `default`. The view stays locked to that one namespace unless you
+explicitly toggle `0` - by design, since many users only have RBAC access to
+specific namespaces.
 
 Environment variables:
 
@@ -112,11 +113,28 @@ Environment variables:
 |----------|---------|--------|
 | `K9L_KUBECTL` | `kubectl` | CLI to drive - set `oc` for OpenShift |
 | `K9L_REFRESH` | `2` | auto-refresh interval in seconds (raise it on slow VPNs) |
+| `K9L_NAMESPACE` | unset | starting namespace (same as `-n`, lower precedence) |
 | `K9L_DEMO` | unset | `1` = built-in demo data, no cluster needed |
 | `K9L_ASCII` | unset | `1` = plain `+---+` borders for terminals without Unicode box drawing |
+| `K9L_CONFIG` | `~/.k9s-lite.conf` | path to the config file |
 
 Both forms take the same flags and variables - the examples work identically
 with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
+
+### Config file
+
+Put your defaults in `~/.k9s-lite.conf` so you don't retype them - plain
+`key=value` lines, `#` comments allowed, parsed (never executed as code):
+
+```ini
+# ~/.k9s-lite.conf
+kubectl=oc          # OpenShift shop
+namespace=my-team   # where I always start
+refresh=5           # corporate VPN is slow
+```
+
+Recognized keys: `refresh`, `namespace`, `kubectl`, `ascii`. Precedence:
+CLI flag > environment variable > config file > built-in default.
 
 ## Why pure Bash?
 

@@ -8,6 +8,7 @@
 #     namespace resolution: --namespace arg > kubeconfig context namespace > "default"
 #   K9L_DEMO=1 bash k9s-lite.sh   # built-in demo data, no cluster needed
 #   K9L_KUBECTL=oc ...            # drive OpenShift's oc instead of kubectl
+#   ~/.k9s-lite.conf              # persisted defaults (refresh/namespace/kubectl/ascii)
 #
 # Keys: j/k/arrows/wheel move · g/G top/bottom · : command (:po :svc :deploy ...)
 #       a resource browser (all api-resources) · / filter · n namespaces · c contexts
@@ -18,12 +19,13 @@
 set -u
 
 K9L_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$K9L_ROOT/lib/config.sh"   # must be first: later libs read K9L_* at source time
 source "$K9L_ROOT/lib/term.sh"
 source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.9.6"
+K9L_VERSION="0.10.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -339,9 +341,13 @@ open_help() {
     "Environment:"
     "  K9L_KUBECTL=oc     drive OpenShift's oc instead of kubectl"
     "  K9L_REFRESH=5      refresh interval in seconds"
-    "  K9L_NS via -n/--namespace flag at startup"
+    "  K9L_NAMESPACE=dev  starting namespace (or -n/--namespace flag)"
     "  K9L_DEMO=1         demo data, no cluster needed"
     "  K9L_ASCII=1        plain +--+ borders"
+    ""
+    "Config file (~/.k9s-lite.conf, or K9L_CONFIG=path):"
+    "  key=value lines: refresh, namespace, kubectl, ascii"
+    "  precedence: flag > environment > config file > default"
   )
   CURSOR=0; SCROLL=0
 }
@@ -497,6 +503,8 @@ main() {
   kube_init
   if [[ -n $ARG_NS ]]; then
     CUR_NS=$ARG_NS
+  elif [[ -n ${K9L_NAMESPACE:-} ]]; then
+    CUR_NS=$K9L_NAMESPACE       # from env or ~/.k9s-lite.conf
   else
     kube_ctx_namespace
   fi

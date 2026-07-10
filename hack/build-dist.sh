@@ -12,7 +12,7 @@ OUT=dist/k9s-lite.dist.sh
 mkdir -p dist
 
 # lib load order must match the `source` lines in k9s-lite.sh
-LIBS="lib/term.sh lib/table.sh lib/kube.sh lib/actions.sh"
+LIBS="lib/config.sh lib/term.sh lib/table.sh lib/kube.sh lib/actions.sh"
 
 {
   # shebang + the header comment block (everything up to the first blank
