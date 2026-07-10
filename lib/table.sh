@@ -11,6 +11,9 @@ TABLE_FOOT=""      # overrides the default footer hint when set (picker mode)
 CURSOR=0
 SCROLL=0
 ROW_SGR=""
+DETAIL_VIEW=""     # when set: rows are describe-style text — cyan "Key:" prefixes,
+                   # no cursor bar, no column re-flow
+DKEY_SGR=$'\e[36m'
 
 # box-drawing characters (K9L_ASCII=1 for plain +---+ on odd terminals)
 if [[ -n ${K9L_ASCII:-} ]]; then
@@ -45,6 +48,7 @@ LAYOUT_COLS=0
 table_reflow() {
   LAYOUT_COLS=$COLS
   local inner=$(( COLS - 2 ))
+  [[ -n $DETAIL_VIEW ]] && return 0    # free-form text, not columns
   [[ -z $TABLE_HEADER ]] && return 0
 
   # column start positions: a non-space preceded by >=2 spaces starts a column
@@ -141,6 +145,12 @@ table_draw() {
   (( SCROLL > CURSOR )) && SCROLL=$CURSOR
   (( CURSOR >= SCROLL + body_h )) && SCROLL=$(( CURSOR - body_h + 1 ))
   (( SCROLL < 0 )) && SCROLL=0
+  if [[ -n $DETAIL_VIEW ]]; then
+    # text viewer: cursor IS the scroll position; stop at the last full page
+    (( CURSOR > n - body_h )) && CURSOR=$(( n - body_h ))
+    (( CURSOR < 0 )) && CURSOR=0
+    SCROLL=$CURSOR
+  fi
 
   local buf=$'\e[H' line i row title tlen left right
 
@@ -179,10 +189,23 @@ table_draw() {
     buf+="${BOX_V}"$'\e[31m'"$line"$'\e[0m'"${BOX_V}"$'\e[K\r\n'
   fi
 
+  local dk dv
   for (( i = SCROLL; i < SCROLL + body_h; i++ )); do
     if (( i < n )); then
       row="${TABLE_ROWS[i]}"
-      if (( i == CURSOR )); then
+      if [[ -n $DETAIL_VIEW ]]; then
+        # describe text: cyan "Key:" prefix, value tinted by status words.
+        # Pad/truncate BEFORE splitting so escape bytes never affect widths.
+        printf -v line '%-*.*s' "$inner" "$inner" " ${row}"
+        row_color "$row"
+        dk=${line%%:*}
+        if [[ $line == *:* && ${#dk} -le 40 ]]; then
+          dv=${line#*:}
+          buf+="${BOX_V}${DKEY_SGR}${dk}"$'\e[0m'":${ROW_SGR}${dv}"$'\e[0m'"${BOX_V}"
+        else
+          buf+="${BOX_V}${ROW_SGR}${line}"$'\e[0m'"${BOX_V}"
+        fi
+      elif (( i == CURSOR )); then
         # k9s-style selection bar: light-blue background, black text
         printf -v line '%-*.*s' "$inner" "$inner" ">${row}"
         buf+="${BOX_V}"$'\e[104;30m'"$line"$'\e[0m'"${BOX_V}"

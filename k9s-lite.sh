@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.8.2"
+K9L_VERSION="0.9.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -222,6 +222,54 @@ filter_mode() {
   refresh
 }
 
+# --- detail view: Enter on a row renders colorized describe inside the box
+SAVED_CURSOR=0
+SAVED_SCROLL=0
+
+open_detail() {
+  act_guard || return 0
+  local out line
+  out=$($KUBECTL_BIN describe "$RESOURCE" "$SEL_NAME" -n "$SEL_NS" 2>&1)
+  out=${out//$'\r'/}
+  MODE=detail
+  DETAIL_VIEW=1
+  SAVED_CURSOR=$CURSOR
+  SAVED_SCROLL=$SCROLL
+  TABLE_TITLE="describe ${RESOURCE}/${SEL_NAME}"
+  TABLE_TITLE_C=$'\e[1;36m'"describe "$'\e[22;35m'"${RESOURCE}/${SEL_NAME}"$'\e[0m'
+  TABLE_HEADER="namespace: ${SEL_NS}"
+  TABLE_MSG=""
+  TABLE_FOOT="j/k:scroll  PgUp/PgDn  g/G:top/btm  q/Esc:back"
+  TABLE_ROWS=()
+  while IFS= read -r line; do
+    TABLE_ROWS+=("$line")
+  done <<< "$out"
+  CURSOR=0; SCROLL=0
+}
+
+detail_close() {
+  MODE=table
+  DETAIL_VIEW=""
+  TABLE_FOOT=""
+  CURSOR=$SAVED_CURSOR
+  SCROLL=$SAVED_SCROLL
+  refresh
+}
+
+dispatch_detail() {
+  case "$1" in
+    j|DOWN)     table_move 1 ;;
+    k|UP)       table_move -1 ;;
+    g|HOME)     table_top ;;
+    G|END)      table_bottom ;;
+    PGDN)       table_move $(( ROWS - 4 )) ;;
+    PGUP)       table_move $(( -(ROWS - 4) )) ;;
+    WHEEL_DOWN) table_move 3 ;;
+    WHEEL_UP)   table_move -3 ;;
+    q|Q|ESC|ENTER) detail_close ;;
+  esac
+}
+
 # --- pickers (ns / ctx) — share the table view state
 picker_enter() { # $1 kind  $2 title  $3 header  $4 current-value; TABLE_ROWS preset
   MODE=picker
@@ -328,7 +376,12 @@ dispatch() {
     dispatch_picker "$1"
     return
   fi
+  if [[ $MODE == detail ]]; then
+    dispatch_detail "$1"
+    return
+  fi
   case "$1" in
+    ENTER)    open_detail ;;
     q|Q)      RUNNING=0 ;;
     j|DOWN)   table_move 1 ;;
     k|UP)     table_move -1 ;;

@@ -74,7 +74,8 @@ K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
 | `:` | command mode — switch resource: `:po` `:svc` `:deploy` `:sts` `:cm` `:secret` `:events` `:routes` … any kind or kubectl shortname |
 | `a` | resource browser — pick from every kind the cluster supports (`kubectl api-resources`, CRDs included) |
 | `/` | filter rows (case-insensitive); `Esc` clears |
-| `d` | describe (pager) |
+| `Enter` | describe rendered inside the box — cyan keys, status-colored values; scroll with j/k, `Esc` back |
+| `d` | describe (plain, in pager) |
 | `y` | YAML (pager) |
 | `v` | events for the selected object, oldest→newest |
 | `l` | logs, live follow in `less +F` — `Ctrl-C` stops following (scroll/search), `q` returns |
