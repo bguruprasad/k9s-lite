@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # table.sh — table view state and rendering.
 # State: TABLE_ROWS (one preformatted line per item), CURSOR, SCROLL.
 

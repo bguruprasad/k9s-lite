@@ -1,5 +1,9 @@
 # k9s-lite
 
+[![CI](https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml/badge.svg)](https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![bash 3.2+](https://img.shields.io/badge/bash-3.2%2B-green.svg)](#requirements)
+
 A [k9s](https://k9scli.io/)-style terminal UI for Kubernetes in **pure Bash + kubectl**.
 No Go binary, no tview/tcell, no jq — nothing to install. Built for locked-down
 environments (corporate Windows machines with only Git Bash, jump hosts, minimal

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # actions.sh — operations on the selected row (describe, yaml, logs, exec, edit,
 # delete). Interactive ones suspend the TUI, hand the real terminal to the child
 # command, then restore raw mode and the alt screen.

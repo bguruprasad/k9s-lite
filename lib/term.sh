@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # term.sh — terminal init/cleanup, size detection, key reading.
 # Raw ANSI escapes only; no tput dependency (mintty-safe baseline).
 # Works on bash 3.2+ (macOS /bin/bash) and bash 5 (Git Bash, Linux).

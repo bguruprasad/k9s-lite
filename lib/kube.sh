@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # kube.sh — all cluster access goes through here.
 # K9L_KUBECTL=oc points every call at the OpenShift CLI instead.
 # K9L_DEMO=1 skips the cluster entirely and uses built-in demo data.

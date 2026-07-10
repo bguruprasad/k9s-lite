@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck -S warning k9s-lite.sh lib/*.sh hack/smoke.sh
+      - name: bash syntax check
+        run: |
+          bash -n k9s-lite.sh
+          for f in lib/*.sh hack/*.sh; do bash -n "$f"; done
+
+  smoke:
+    name: smoke (${{ matrix.os }})
+    strategy:
+      matrix:
+        # macos exercises bash 3.2 (system /bin/bash), ubuntu exercises bash 5
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: pty smoke test (demo mode)
+        run: bash hack/smoke.sh
