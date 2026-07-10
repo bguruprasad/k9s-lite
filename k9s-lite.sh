@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.9.0"
+K9L_VERSION="0.9.1"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -83,21 +83,35 @@ K9L_TAG="k9s, but lite"
 # first, colors wrapped after — printf field widths count escape bytes.
 add_info_line() {
   local lab val s left_c right_c mid sp
+  # narrow terminals: no room for the key map — identity block only, value
+  # column shrunk to fit (keys stay discoverable via the footer)
+  local valw=24
+  if (( COLS < 80 )); then
+    valw=$(( COLS - 12 ))
+    (( valw < 6 )) && valw=6
+  fi
   printf -v lab '%-9s' "$1"
-  printf -v val '%-24.24s' "$2"
+  printf -v val '%-*.*s' "$valw" "$valw" "$2"
   left_c=" ${C_LBL}${lab}${C_RST} ${C_VAL}${val}${C_RST}"
-  local left_w=$(( 2 + 9 + 24 ))
+  local left_w=$(( 2 + 9 + valw ))
   shift 2
   right_c=""
   local right_w=0
-  while (( $# >= 2 )); do
-    printf -v s '%-4s' "$1"
-    right_c+="${C_KEY}${s}${C_RST} "
-    printf -v s '%-9s' "$2"
-    right_c+="${C_ACT}${s}${C_RST} "
-    right_w=$(( right_w + 15 ))
-    shift 2
-  done
+  if (( COLS >= 80 )); then
+    while (( $# >= 2 )); do
+      printf -v s '%-4s' "$1"
+      right_c+="${C_KEY}${s}${C_RST} "
+      printf -v s '%-9s' "$2"
+      right_c+="${C_ACT}${s}${C_RST} "
+      right_w=$(( right_w + 15 ))
+      shift 2
+    done
+  fi
+  if (( right_w == 0 )); then
+    # no key map: no padding needed, \e[K clears the rest of the line
+    INFO_LINES+=("$left_c")
+    return
+  fi
   mid=$(( COLS - left_w - right_w ))
   (( mid < 0 )) && mid=0
   local logo_w=${#K9L_LOGO[0]} line_i=${#INFO_LINES[@]} l r
