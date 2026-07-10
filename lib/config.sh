@@ -23,14 +23,21 @@ k9l_load_config() {
     [[ $line == *=* ]] || continue
     key=${line%%=*}
     val=${line#*=}
-    key=${key//[[:space:]]/}
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
     val="${val#"${val%%[![:space:]]*}"}"
     val="${val%"${val##*[![:space:]]}"}"
+    # tolerate quoted values: namespace="dev" means dev
+    case "$val" in
+      \"*\") val=${val#\"}; val=${val%\"} ;;
+      \'*\') val=${val#\'}; val=${val%\'} ;;
+    esac
     [[ -z $key || -z $val ]] && continue
     case "$key" in
       refresh)
+        # positive integers only: 0 would busy-spin the event loop
         case "$val" in
-          *[!0-9]*) ;;   # not a number: ignore
+          ''|*[!0-9]*|0*) ;;
           *) [[ -z ${K9L_REFRESH:-} ]] && K9L_REFRESH=$val ;;
         esac ;;
       namespace)
