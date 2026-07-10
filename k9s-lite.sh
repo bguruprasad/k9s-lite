@@ -23,7 +23,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.7.0"
+K9L_VERSION="0.7.1"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -60,18 +60,47 @@ demo_data() {
   done
 }
 
-# k9s-style header block: cluster identity on the left, key map on the right
+# k9s-style header block: cluster identity on the left, key map on the right.
+# Colors: yellow labels / white values; blue keys / gray actions.
+C_LBL=$'\e[33m'
+C_VAL=$'\e[1;97m'
+C_KEY=$'\e[94m'
+C_ACT=$'\e[90m'
+C_RST=$'\e[0m'
+
+# add_info_line <label> <value> [<key> <action>]...
+# Pads each segment as plain text BEFORE wrapping in colors — printf field
+# widths count escape bytes, so colored strings can't be padded directly.
+add_info_line() {
+  local lab val s l
+  printf -v lab '%-9s' "$1"
+  printf -v val '%-24.24s' "$2"
+  l=" ${C_LBL}${lab}${C_RST} ${C_VAL}${val}${C_RST}"
+  shift 2
+  while (( $# >= 2 )); do
+    printf -v s '%-4s' "$1"
+    l+="${C_KEY}${s}${C_RST} "
+    printf -v s '%-9s' "$2"
+    l+="${C_ACT}${s}${C_RST} "
+    shift 2
+  done
+  INFO_LINES+=("$l")
+}
+
 build_info() {
   INFO_LINES=()
-  local l
-  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "Context:" "$CUR_CTX"  "<d> describe"  "<l> logs"   "<:>  resource"
-  INFO_LINES+=("$l")
-  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "Cluster:" "$CUR_CLUSTER" "<y> yaml"   "<s> shell"  "</>  filter"
-  INFO_LINES+=("$l")
-  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "User:" "$CUR_USER" "<v> events"      "<e> edit"   "<n>  namespace"
-  INFO_LINES+=("$l")
-  printf -v l ' %-9s %-26.26s %-15s %-14s %s' "Ver:" "v$K9L_VERSION (k8s $K8S_VER)" "<p> prev logs" "<^d> delete" "<q>  quit"
-  INFO_LINES+=("$l")
+  add_info_line "Context:" "$CUR_CTX"                      "<d>"  "describe"  "<l>"  "logs"   "<:>" "resource"
+  add_info_line "Cluster:" "$CUR_CLUSTER"                  "<y>"  "yaml"      "<s>"  "shell"  "</>" "filter"
+  add_info_line "User:"    "$CUR_USER"                     "<v>"  "events"    "<e>"  "edit"   "<n>" "namespace"
+  add_info_line "Ver:"     "v$K9L_VERSION (k8s $K8S_VER)"  "<p>"  "prev logs" "<^d>" "delete" "<q>" "quit"
+}
+
+# k9s-style title: cyan resource, magenta (namespace [/filter]); the renderer
+# appends the cyan [count]. TABLE_TITLE stays plain for width math.
+set_title() {
+  local ns="${CUR_NS:-all}${FILTER:+ /$FILTER}"
+  TABLE_TITLE="${RESOURCE}(${ns})"
+  TABLE_TITLE_C=$'\e[1;36m'"${RESOURCE}"$'\e[22;35m'"(${ns})"$'\e[0m'
 }
 
 # fetch + filter + derive title/message; never crashes the loop on kubectl failure
@@ -86,7 +115,7 @@ refresh() {
     shopt -u nocasematch
     if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
   fi
-  TABLE_TITLE="ns:${CUR_NS:-all} | ${RESOURCE}${FILTER:+ | /$FILTER}"
+  set_title
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"
   elif (( ${#TABLE_ROWS[@]} == 0 )); then
@@ -127,7 +156,7 @@ switch_resource() {
   refresh
   if [[ -n $KUBE_ERR ]]; then
     RESOURCE=$old   # keep previous view; error line stays visible
-    TABLE_TITLE="ns:${CUR_NS:-all} | ${RESOURCE}${FILTER:+ | /$FILTER}"
+    set_title
   fi
 }
 
@@ -157,6 +186,7 @@ picker_enter() { # $1 kind  $2 title  $3 header  $4 current-value; TABLE_ROWS pr
   MODE=picker
   PICKER_KIND=$1
   TABLE_TITLE=$2
+  TABLE_TITLE_C=""     # pickers use the plain bold title
   TABLE_HEADER=$3
   TABLE_MSG=""
   TABLE_FOOT="Enter:select  i:type-name  Esc:cancel  j/k:move"

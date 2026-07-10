@@ -9,8 +9,8 @@ containers) where the real k9s isn't available.
  Context:  kind-k9s-lite         <d> describe    <l> logs       <:>  resource
  Cluster:  kind-k9s-lite         <y> yaml        <s> shell      </>  filter
  User:     kind-k9s-lite         <v> events      <e> edit       <n>  namespace
- Ver:      v0.7.0 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
-┌────────────────────────── ns:demo | pods  (8) ───────────────────────────┐
+ Ver:      v0.7.1 (k8s v1.36.1)  <p> prev logs   <^d> delete    <q>  quit
+┌────────────────────────────── pods(demo)[8] ─────────────────────────────┐
 │ NAME                   READY   STATUS             RESTARTS      AGE      │
 │>api-748ffb4cd6-mnr6t   1/1     Running            0             97m      │
 │ api-748ffb4cd6-wczk7   1/1     Running            0             97m      │
@@ -22,6 +22,8 @@ containers) where the real k9s isn't available.
  a:resources  r:refresh  0:all-ns  c:context  g/G:top/btm  Esc:clear-filter
 ```
 Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box drawing.
+Colors follow k9s: yellow labels / bold-white values, blue keys / gray actions,
+cyan resource + magenta namespace in the title, light-blue selection bar.
 
 ## Why
 

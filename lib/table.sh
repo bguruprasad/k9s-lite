@@ -2,6 +2,7 @@
 # State: TABLE_ROWS (one preformatted line per item), CURSOR, SCROLL.
 
 TABLE_TITLE=""
+TABLE_TITLE_C=""   # colored variant; must render at the same visible width as TABLE_TITLE
 TABLE_HEADER=""
 INFO_LINES=()      # k9s-style header block (context/cluster/user/ver + key map)
 TABLE_ROWS=()
@@ -63,23 +64,31 @@ table_draw() {
 
   local buf=$'\e[H' line i row title tlen left right
 
+  # info lines carry their own segment colors and fixed-width padding —
+  # don't pad here (printf width would count the escape bytes)
   for (( i = 0; i < info_n; i++ )); do
-    pad "${INFO_LINES[i]}"
-    buf+=$'\e[36m'"$PADDED"$'\e[0m\r\n'
+    buf+="${INFO_LINES[i]}"$'\e[K\r\n'
   done
 
-  # top border with the title centered inside the rule, bold
-  title=" ${TABLE_TITLE} (${n}) "
+  # top border with the title centered inside the rule; width math always uses
+  # the plain title (escape bytes have no visible width)
+  local tdisp
+  title=" ${TABLE_TITLE}[${n}] "
   tlen=${#title}
   if (( tlen > inner )); then
     title=${title:0:inner}
     tlen=$inner
+    tdisp=$'\e[1m'"${title}"$'\e[22m'
+  elif [[ -n $TABLE_TITLE_C ]]; then
+    tdisp=" ${TABLE_TITLE_C}"$'\e[36m'"[${n}]"$'\e[0m'" "
+  else
+    tdisp=$'\e[1m'"${title}"$'\e[22m'
   fi
   left=$(( (inner - tlen) / 2 ))
   right=$(( inner - tlen - left ))
   box_rule "$left";  line="${BOX_TL}${RULE}"
   box_rule "$right"
-  buf+="${line}"$'\e[1m'"${title}"$'\e[22m'"${RULE}${BOX_TR}"$'\e[K\r\n'
+  buf+="${line}${tdisp}${RULE}${BOX_TR}"$'\e[K\r\n'
 
   # column header (inside the box)
   printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_HEADER"
@@ -94,8 +103,9 @@ table_draw() {
     if (( i < n )); then
       row="${TABLE_ROWS[i]}"
       if (( i == CURSOR )); then
+        # k9s-style selection bar: light-blue background, black text
         printf -v line '%-*.*s' "$inner" "$inner" ">${row}"
-        buf+="${BOX_V}"$'\e[7m'"$line"$'\e[27m'"${BOX_V}"
+        buf+="${BOX_V}"$'\e[104;30m'"$line"$'\e[0m'"${BOX_V}"
       else
         row_color "$row"
         printf -v line '%-*.*s' "$inner" "$inner" " ${row}"
