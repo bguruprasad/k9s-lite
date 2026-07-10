@@ -24,7 +24,7 @@ that one script is the entire program. Pin a specific version (recommended,
 especially where you need to know exactly what you're running):
 
 ```sh
-curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.6/k9s-lite.dist.sh
+curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.10.0/k9s-lite.dist.sh
 bash k9s-lite.dist.sh -n my-namespace
 ```
 
@@ -41,7 +41,7 @@ Alternatives, in order of least friction:
 - On Windows, PowerShell **does** use the system proxy:
 
   ```powershell
-  Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download/v0.9.6/k9s-lite.dist.sh -OutFile k9s-lite.dist.sh
+  Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download/v0.10.0/k9s-lite.dist.sh -OutFile k9s-lite.dist.sh
   ```
 - Or tell curl about your proxy explicitly:
   `curl -x http://your-proxy:8080 -LO <url>` (or set `https_proxy`).
