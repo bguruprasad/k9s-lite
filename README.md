@@ -41,29 +41,34 @@ Set `K9L_ASCII=1` for plain `+---+` borders on terminals without Unicode box dra
 
 ## Install
 
-```sh
-git clone https://github.com/bguruprasad/k9s-lite.git && cd k9s-lite
-bash k9s-lite.sh
-```
-
-Or copy `k9s-lite.sh` + the `lib/` directory to any box — that's the whole program.
-
-### Single file (no clone, no directory structure)
-
-For boxes where you can only carry one file — a jump host, a locked-down
-Windows machine, pasting into a remote shell — grab `k9s-lite.dist.sh` from
-the [latest release](../../releases/latest). It's `k9s-lite.sh` and every
-`lib/*.sh` concatenated together; behaves identically, verified by running
-the exact same test suite against both forms on every push.
+One file, no clone, nothing else to set up — grab `k9s-lite.dist.sh` from the
+[latest release](../../releases/latest) and run it:
 
 ```sh
 curl -LO https://github.com/bguruprasad/k9s-lite/releases/latest/download/k9s-lite.dist.sh
 bash k9s-lite.dist.sh
 ```
 
-To build it yourself: `hack/build-dist.sh` (output goes to `dist/`, gitignored).
+That single script is the entire program (`k9s-lite.sh` + every `lib/*.sh`
+concatenated), so it works on jump hosts, locked-down Windows machines with
+Git Bash, or anywhere you can paste one file. CI runs the exact same test
+suite against the single-file and multi-file forms on every push, so they
+can't drift apart.
+
+### From source (development)
+
+```sh
+git clone https://github.com/bguruprasad/k9s-lite.git && cd k9s-lite
+bash k9s-lite.sh
+```
+
+To build the single-file version yourself: `hack/build-dist.sh` (output goes
+to `dist/`, gitignored).
 
 ## Usage
+
+Same flags and environment variables for both forms — substitute
+`k9s-lite.dist.sh` for `k9s-lite.sh` if you installed the single file:
 
 ```sh
 bash k9s-lite.sh                     # namespace from kubeconfig context, else "default"
@@ -71,6 +76,13 @@ bash k9s-lite.sh -n my-namespace     # start in a specific namespace
 K9L_KUBECTL=oc bash k9s-lite.sh      # OpenShift
 K9L_REFRESH=5 bash k9s-lite.sh       # slower refresh (default 2s) for slow VPNs
 K9L_DEMO=1 bash k9s-lite.sh          # demo data, no cluster needed
+```
+
+Tip: make it feel like a real command:
+
+```sh
+mkdir -p ~/bin && mv k9s-lite.dist.sh ~/bin/k9l && chmod +x ~/bin/k9l
+k9l -n my-namespace
 ```
 
 ## Keys
