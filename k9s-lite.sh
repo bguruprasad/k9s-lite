@@ -162,6 +162,7 @@ set_title() {
 # fetch + filter + derive title/message; never crashes the loop on kubectl failure
 refresh() {
   kube_fetch || true
+  table_hide_columns
   if [[ -n $FILTER && -z $KUBE_ERR && ${#TABLE_ROWS[@]} -gt 0 ]]; then
     local kept=() row
     shopt -s nocasematch
@@ -426,6 +427,7 @@ open_help() {
     "  K9L_NAMESPACE=dev  starting namespace (or -n/--namespace flag)"
     "  K9L_DEMO=1         demo data, no cluster needed"
     "  K9L_ASCII=1        plain +--+ borders"
+    "  K9L_HIDE_COLUMNS   hidden columns (default: NOMINATED NODE,READINESS GATES)"
     ""
     "Config file (~/.k9s-lite.conf, or K9L_CONFIG=path):"
     "  key=value lines: refresh, namespace, kubectl, ascii"

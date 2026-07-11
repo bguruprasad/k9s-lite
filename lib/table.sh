@@ -115,6 +115,49 @@ table_sort() {
   return 0
 }
 
+# Drop columns whose header cell matches the comma-separated hide list.
+# NOMINATED NODE and READINESS GATES (kubectl -o wide extras) are almost
+# always <none> and just eat width the NAME column could use. Cutting the
+# exact [start, next-start) region from header and rows keeps everything
+# else aligned. Idempotent: on a fetch error the previous (already-cut)
+# rows are kept and the scan simply finds nothing to cut.
+K9L_HIDE_COLUMNS="${K9L_HIDE_COLUMNS:-NOMINATED NODE,READINESS GATES}"
+table_hide_columns() {
+  [[ -z $K9L_HIDE_COLUMNS || -z $TABLE_HEADER ]] && return 0
+  table_columns
+  (( COL_N < 2 )) && return 0
+  local j drops=()
+  for (( j = COL_N - 1; j >= 0; j-- )); do   # high to low: earlier offsets stay valid
+    table_cell "$TABLE_HEADER" "$j"
+    case ",${K9L_HIDE_COLUMNS}," in
+      *",${CELL},"*) drops+=("$j") ;;
+    esac
+  done
+  (( ${#drops[@]} == 0 )) && return 0
+  local d start end n=${#TABLE_ROWS[@]} i sp
+  for d in "${drops[@]}"; do
+    start=${COL_STARTS[d]}
+    if (( d + 1 < COL_N )); then end=${COL_STARTS[d+1]}; else end=-1; fi
+    if (( end < 0 )); then
+      TABLE_HEADER=${TABLE_HEADER:0:start}
+      for (( i = 0; i < n; i++ )); do
+        TABLE_ROWS[i]=${TABLE_ROWS[i]:0:start}
+      done
+    else
+      TABLE_HEADER="${TABLE_HEADER:0:start}${TABLE_HEADER:end}"
+      for (( i = 0; i < n; i++ )); do
+        TABLE_ROWS[i]="${TABLE_ROWS[i]:0:start}${TABLE_ROWS[i]:end}"
+      done
+    fi
+  done
+  # trim trailing spaces left by a last-column cut
+  sp=${TABLE_HEADER##*[! ]}; TABLE_HEADER=${TABLE_HEADER%"$sp"}
+  for (( i = 0; i < n; i++ )); do
+    sp=${TABLE_ROWS[i]##*[! ]}; TABLE_ROWS[i]=${TABLE_ROWS[i]%"$sp"}
+  done
+  return 0
+}
+
 # Add the ^/v sort marker to the (reflowed) header WITHOUT changing its
 # length: overwrite padding spaces in place, so column positions - which the
 # rows are aligned to - stay exactly as reflow produced them. Reflow's gap is

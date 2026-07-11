@@ -117,6 +117,7 @@ Environment variables:
 | `K9L_NAMESPACE` | unset | starting namespace (same as `-n`, lower precedence) |
 | `K9L_DEMO` | unset | `1` = built-in demo data, no cluster needed |
 | `K9L_ASCII` | unset | `1` = plain `+---+` borders for terminals without Unicode box drawing |
+| `K9L_HIDE_COLUMNS` | `NOMINATED NODE,READINESS GATES` | comma-separated header names to hide (kubectl `-o wide` extras that are almost always `<none>`); set empty to show everything |
 | `K9L_CONFIG` | `~/.k9s-lite.conf` | path to the config file |
 
 Both forms take the same flags and variables - the examples work identically
