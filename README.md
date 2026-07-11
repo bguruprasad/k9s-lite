@@ -201,7 +201,12 @@ gitignored) so the two forms can't drift apart.
 
 ## Contributing
 
-Contributions are welcome. The workflow:
+Contributions are welcome via pull request. Note the model up front: **you
+open PRs, the maintainer reviews and merges.** Contributors don't merge their
+own work (and don't push to `main`) - every change lands through a PR that the
+maintainer approves, so someone is always gatekeeping what goes into the repo.
+
+The workflow:
 
 1. **Fork** the repo and clone your fork.
 2. **Branch** off `main`: `git checkout -b feat/short-name` (or `fix/...`).
@@ -213,9 +218,15 @@ Contributions are welcome. The workflow:
    bash hack/smoke.sh                                     # runs the TUI in a pty
    bash hack/build-dist.sh && bash hack/smoke.sh dist/k9s-lite.dist.sh
    ```
-5. **Open a pull request** against `main`. CI (shellcheck + pty smoke on
-   Ubuntu bash 5 and macOS bash 3.2, source and single-file build) must be
-   green. Keep commits small and focused.
+5. **Open a pull request** against `main` from your fork, then stop there - the
+   maintainer takes it from that point. Keep commits small and focused, and
+   describe what you changed and why. CI (shellcheck + pty smoke on Ubuntu
+   bash 5 and macOS bash 3.2, source and single-file build) must be green
+   before it can be merged.
+6. **Expect review feedback.** The maintainer reviews every PR, may ask for
+   changes, and does the merge once it's approved and green. Opening a large or
+   unsolicited PR? File an issue first to check the direction - it saves you
+   rework.
 
 ### Conventions
 
