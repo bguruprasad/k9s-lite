@@ -25,7 +25,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.11.0"
+K9L_VERSION="0.12.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -162,6 +162,7 @@ set_title() {
 # fetch + filter + derive title/message; never crashes the loop on kubectl failure
 refresh() {
   kube_fetch || true
+  table_hide_columns
   if [[ -n $FILTER && -z $KUBE_ERR && ${#TABLE_ROWS[@]} -gt 0 ]]; then
     local kept=() row
     shopt -s nocasematch
@@ -171,7 +172,9 @@ refresh() {
     shopt -u nocasematch
     if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
   fi
-  table_reflow
+  table_sort
+  table_reflow      # marker is a draw-time overlay now (table_mark_sort), so the
+                    # pipeline always runs on a pristine, unmarked header
   set_title
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"
@@ -205,10 +208,21 @@ prompt_input() {
   printf '\e[?25l'
 }
 
+# Change the active namespace. Resetting the sort is mandatory whenever this
+# crosses the all-ns (empty CUR_NS) <-> specific-ns boundary: the NAMESPACE
+# column appears/disappears, shifting every column index, so a stale SORT_COL
+# would sort by and mark the wrong column. Resetting unconditionally is simplest
+# and matches switch_resource - the user re-cycles o if they want a sort.
+ns_change() {
+  CUR_NS=$1
+  SORT_COL=0; SORT_DESC=""
+}
+
 # switch resource kind; kubectl validates, revert to previous view on error
 switch_resource() {
   local old=$RESOURCE
   RESOURCE=$1
+  SORT_COL=0; SORT_DESC=""   # different kind, different columns
   CURSOR=0; SCROLL=0
   refresh
   if [[ -n $KUBE_ERR ]]; then
@@ -272,9 +286,12 @@ open_detail() {
   FOLLOW=""
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
-  TABLE_TITLE="describe ${RESOURCE}/${SEL_NAME}"
-  TABLE_TITLE_C=$'\e[1;36m'"describe "$'\e[22;35m'"${RESOURCE}/${SEL_NAME}"$'\e[0m'
-  TABLE_HEADER="namespace: ${SEL_NS}"
+  # title folds in the namespace (dropped for cluster-scoped/all-ns rows with no
+  # SEL_NS); no separate namespace header row - describe's body already has it
+  local path="${SEL_NS:+${SEL_NS}/}${RESOURCE}/${SEL_NAME}"
+  TABLE_TITLE="describe ${path}"
+  TABLE_TITLE_C=$'\e[1;36m'"describe "$'\e[22;35m'"${path}"$'\e[0m'
+  TABLE_HEADER=""
   TABLE_MSG=""
   TABLE_FOOT="j/k:scroll  PgUp/PgDn  g/G:top/btm  q/Esc:back"
   TABLE_ROWS=()
@@ -302,8 +319,10 @@ detail_close() {
 logs_set_title() {
   local suffix="" st=off
   if [[ -n $FOLLOW ]]; then suffix=" [following]"; st=on; fi
-  TABLE_TITLE="logs ${LOGS_KIND}/${LOGS_NAME}${suffix}"
-  TABLE_TITLE_C=$'\e[1;36m'"logs "$'\e[22;35m'"${LOGS_KIND}/${LOGS_NAME}"$'\e[0m'"${suffix}"
+  # namespace folded into the title (dropped when empty); no header row
+  local path="${LOGS_NS:+${LOGS_NS}/}${LOGS_KIND}/${LOGS_NAME}"
+  TABLE_TITLE="logs ${path}${suffix}"
+  TABLE_TITLE_C=$'\e[1;36m'"logs "$'\e[22;35m'"${path}"$'\e[0m'"${suffix}"
   TABLE_FOOT="f:follow(${st})  r:reload  j/k:scroll  g/G:top/btm  q/Esc:back"
 }
 
@@ -344,7 +363,7 @@ open_logs() {
   FOLLOW=""
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
-  TABLE_HEADER="namespace: ${LOGS_NS}  (last 500 lines)"
+  TABLE_HEADER=""
   TABLE_MSG=""
   logs_set_title
   logs_load
@@ -413,6 +432,7 @@ open_help() {
     "  a:            browse every resource kind the cluster supports"
     "  n:            namespace picker (type a name if listing is forbidden)"
     "  c:            context picker"
+    "  o / O:        cycle sort column / flip direction (^ or v marks the header)"
     "  ?:            this help"
     "  q / Esc:      back / quit"
     ""
@@ -422,6 +442,7 @@ open_help() {
     "  K9L_NAMESPACE=dev  starting namespace (or -n/--namespace flag)"
     "  K9L_DEMO=1         demo data, no cluster needed"
     "  K9L_ASCII=1        plain +--+ borders"
+    "  K9L_HIDE_COLUMNS   hidden columns (default: NOMINATED NODE,READINESS GATES)"
     ""
     "Config file (~/.k9s-lite.conf, or K9L_CONFIG=path):"
     "  key=value lines: refresh, namespace, kubectl, ascii"
@@ -451,7 +472,7 @@ open_ns_picker() {
     # namespace listing is often Forbidden with ns-scoped RBAC - type it instead
     prompt_input "can't list namespaces (${KUBE_ERR}) - enter namespace: "
     if [[ -n $REPLY_STR ]]; then
-      CUR_NS=$REPLY_STR
+      ns_change "$REPLY_STR"
       CURSOR=0; SCROLL=0
     fi
     refresh
@@ -486,12 +507,13 @@ PENDING_RES=""
 picker_apply() { # $1 selected value
   [[ -z $1 ]] && return
   case "$PICKER_KIND" in
-    ns)  CUR_NS=$1 ;;
+    ns)  ns_change "$1" ;;
     res) PENDING_RES=$1 ;;   # applied by picker_close so revert-on-error works
     ctx)
       if kube_use_context "$1"; then
         CUR_CTX=$1
         kube_ctx_namespace   # namespace follows the new context
+        SORT_COL=0; SORT_DESC=""   # new context's ns may flip all-ns<->specific: columns shift
         kube_cluster_info
         build_info
       fi ;;
@@ -568,8 +590,16 @@ dispatch() {
     e)        act_edit ;;
     $'\004')  act_delete ;;    # Ctrl-D
     ESC)      [[ -n $FILTER ]] && { FILTER=""; CURSOR=0; SCROLL=0; refresh; } ;;
+    o)        # cycle sort column: natural -> col1 -> ... -> colN -> natural
+      table_columns
+      SORT_COL=$(( (SORT_COL + 1) % (COL_N + 1) ))
+      refresh ;;
+    O)        # flip sort direction
+      if [[ -n $SORT_DESC ]]; then SORT_DESC=""; else SORT_DESC=1; fi
+      refresh ;;
     0)        # explicit all-namespaces toggle (needs cluster-wide list RBAC)
       if [[ -n $CUR_NS ]]; then LAST_NS=$CUR_NS; CUR_NS=""; else CUR_NS=${LAST_NS:-default}; fi
+      SORT_COL=0; SORT_DESC=""   # toggling all-ns adds/removes NAMESPACE: column indices shift
       CURSOR=0; SCROLL=0
       refresh ;;
   esac

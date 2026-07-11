@@ -25,6 +25,7 @@ feed() {
     printf 'jjj'     # move cursor 3 down
     sleep 1; printf '?'       # open help
     sleep 1; printf '\033'    # Esc back to table
+    sleep 1; printf 'o'       # sort by first column
     sleep 1; printf 'q'       # quit
   done
 }
@@ -106,6 +107,7 @@ check '>demo-app-4-'         'j moves the cursor'
 check $'\e[107;30m'          'selection bar drawn'
 check 'Context:'             'header identity block'
 check 'key reference'        'help view opens on ?'
+check 'NAME ^'               'o sorts and marks the header'
 check $'\e[?1049l'           'alt screen restored on quit'
 
 exit "$fail"

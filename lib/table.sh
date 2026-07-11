@@ -43,6 +43,174 @@ row_color() {
   esac
 }
 
+# table_columns - detect column start positions from TABLE_HEADER into
+# COL_STARTS/COL_N (kubectl's tabwriter aligns rows identically to the
+# header; a non-space preceded by >=2 spaces starts a column).
+COL_STARTS=()
+COL_N=0
+table_columns() {
+  COL_STARTS=(0)
+  local h=$TABLE_HEADER hlen=${#TABLE_HEADER} i c gapn=0
+  for (( i = 1; i < hlen; i++ )); do
+    c=${h:i:1}
+    if [[ $c == ' ' ]]; then
+      (( gapn++ ))
+    else
+      (( gapn >= 2 )) && COL_STARTS+=("$i")
+      gapn=0
+    fi
+  done
+  COL_N=${#COL_STARTS[@]}
+}
+
+# table_cell <row> <col-index-0-based> - trimmed cell text into $CELL
+table_cell() {
+  local row=$1 j=$2 clen sp
+  local start=${COL_STARTS[j]}
+  if (( j + 1 < COL_N )); then
+    clen=$(( ${COL_STARTS[j+1]} - start ))
+    CELL=${row:start:clen}
+  else
+    CELL=${row:start}
+  fi
+  sp=${CELL##*[! ]}; CELL=${CELL%"$sp"}
+  CELL="${CELL#"${CELL%%[![:space:]]*}"}"
+}
+
+# Sort TABLE_ROWS by column SORT_COL (1-based; 0 = kubectl's natural order),
+# descending when SORT_DESC is set. Numeric columns (all keys digits-only)
+# sort numerically. One sort(1) fork per refresh - same cost class as the
+# kubectl call that produced the rows.
+# IMPORTANT: sorts rows only - TABLE_HEADER must NOT be touched here. The
+# header defines the column positions the rows are aligned to; changing its
+# length would make reflow slice every row at the wrong offsets (columns
+# bleeding into each other, status colors lost). The visual ^/v marker is a
+# display-only overlay applied at draw time by table_mark_sort, never stored.
+SORT_COL=0
+SORT_DESC=""
+table_sort() {
+  (( SORT_COL <= 0 )) && return 0
+  [[ -n $DETAIL_VIEW || -z $TABLE_HEADER ]] && return 0
+  local n=${#TABLE_ROWS[@]}
+  table_columns
+  (( COL_N < 1 )) && return 0
+  (( SORT_COL > COL_N )) && SORT_COL=$COL_N
+  local j=$(( SORT_COL - 1 ))
+  (( n < 2 )) && return 0
+  # Numeric when every cell is an integer optionally followed by " (...)" -
+  # covers plain counts and kubectl's RESTARTS "12 (3h ago)" form, whose leading
+  # int is what we want to order by (sort -n reads the prefix, ignores the rest).
+  # Deliberately NOT numeric for "1/1" (READY) or "2h/3d" (AGE): a leading-int
+  # key would sort those wrong/coarse, so they stay lexical as before.
+  local sep=$'\x01' i numeric=1 lines=() head
+  for (( i = 0; i < n; i++ )); do
+    table_cell "${TABLE_ROWS[i]}" "$j"
+    head=${CELL%% *}                       # leading token, before any " (...)"
+    [[ -z $head || $head == *[!0-9]* ]] && numeric=0
+    lines+=("${CELL}${sep}${TABLE_ROWS[i]}")
+  done
+  local sortargs=(-t "$sep" "-k1,1")
+  (( numeric )) && sortargs+=(-n)
+  [[ -n $SORT_DESC ]] && sortargs+=(-r)
+  local sorted line
+  sorted=$(printf '%s\n' "${lines[@]}" | LC_ALL=C sort "${sortargs[@]}")
+  TABLE_ROWS=()
+  while IFS= read -r line; do
+    TABLE_ROWS+=("${line#*"$sep"}")
+  done <<< "$sorted"
+  return 0
+}
+
+# Drop columns whose header cell matches the comma-separated hide list.
+# NOMINATED NODE and READINESS GATES (kubectl -o wide extras) are almost
+# always <none> and just eat width the NAME column could use. Cutting the
+# exact [start, next-start) region from header and rows keeps everything
+# else aligned. Idempotent: on a fetch error the previous (already-cut)
+# rows are kept and the scan simply finds nothing to cut.
+K9L_HIDE_COLUMNS="${K9L_HIDE_COLUMNS:-NOMINATED NODE,READINESS GATES}"
+table_hide_columns() {
+  [[ -z $K9L_HIDE_COLUMNS || -z $TABLE_HEADER ]] && return 0
+  table_columns
+  (( COL_N < 2 )) && return 0
+  local j drops=()
+  for (( j = COL_N - 1; j >= 0; j-- )); do   # high to low: earlier offsets stay valid
+    table_cell "$TABLE_HEADER" "$j"
+    case ",${K9L_HIDE_COLUMNS}," in
+      *",${CELL},"*) drops+=("$j") ;;
+    esac
+  done
+  (( ${#drops[@]} == 0 )) && return 0
+  local d start end n=${#TABLE_ROWS[@]} i sp
+  for d in "${drops[@]}"; do
+    start=${COL_STARTS[d]}
+    if (( d + 1 < COL_N )); then end=${COL_STARTS[d+1]}; else end=-1; fi
+    if (( end < 0 )); then
+      TABLE_HEADER=${TABLE_HEADER:0:start}
+      for (( i = 0; i < n; i++ )); do
+        TABLE_ROWS[i]=${TABLE_ROWS[i]:0:start}
+      done
+    else
+      TABLE_HEADER="${TABLE_HEADER:0:start}${TABLE_HEADER:end}"
+      for (( i = 0; i < n; i++ )); do
+        TABLE_ROWS[i]="${TABLE_ROWS[i]:0:start}${TABLE_ROWS[i]:end}"
+      done
+    fi
+  done
+  # trim trailing spaces left by a last-column cut
+  sp=${TABLE_HEADER##*[! ]}; TABLE_HEADER=${TABLE_HEADER%"$sp"}
+  for (( i = 0; i < n; i++ )); do
+    sp=${TABLE_ROWS[i]##*[! ]}; TABLE_ROWS[i]=${TABLE_ROWS[i]%"$sp"}
+  done
+  return 0
+}
+
+# Build a DISPLAY-ONLY copy of the header with the ^/v sort marker, into
+# $MARKED_HEADER. Never mutates TABLE_HEADER: the marker used to live in the
+# header itself, so any pass that re-ran on a kept header (kubectl-error tick),
+# a reflowed header (resize), or a shifted layout (0-toggle) double-marked,
+# accumulated (`NODE ^ ^ ^`), or mis-derived columns. Keeping it out of the
+# data makes every pass idempotent - draw calls this each frame on the pristine,
+# already-reflowed TABLE_HEADER and prints the result without storing it.
+#
+# Length-preserving: overwrites padding spaces in place so the display copy is
+# the same width as the rows (draw pads both to the box width). " ^" sits right
+# after the header text when the column has slack, a bare mark in the last gap
+# space when the text fills the column. The last column has no gap to its right,
+# so the mark overwrites its own trailing padding; if it fills to the very end
+# we append (draw truncates to the box width, and rows are independent).
+MARKED_HEADER=""
+table_mark_sort() {
+  MARKED_HEADER=$TABLE_HEADER
+  (( SORT_COL <= 0 )) && return 0
+  [[ -n $DETAIL_VIEW || -z $TABLE_HEADER ]] && return 0
+  table_columns
+  (( COL_N < 1 )) && return 0
+  (( SORT_COL > COL_N )) && SORT_COL=$COL_N
+  local j=$(( SORT_COL - 1 ))
+  local mark='^'
+  [[ -n $SORT_DESC ]] && mark='v'
+  table_cell "$TABLE_HEADER" "$j"
+  local start=${COL_STARTS[j]} len=${#CELL} pos str h=$TABLE_HEADER hlen=${#TABLE_HEADER}
+  if (( j + 1 >= COL_N )); then
+    pos=$(( start + len ))
+    if (( pos + 2 <= hlen )); then          # trailing padding to overwrite
+      MARKED_HEADER="${h:0:pos} ${mark}${h:pos+2}"
+    else
+      MARKED_HEADER="${h} ${mark}"          # cell fills to the end: append
+    fi
+    return 0
+  fi
+  local next=${COL_STARTS[j+1]}
+  pos=$(( start + len ))
+  str=" ${mark}"
+  if (( pos + 2 > next - 2 )); then
+    pos=$(( next - 3 ))     # header fills the column: bare mark in the gap
+    str=$mark
+  fi
+  MARKED_HEADER="${h:0:pos}${str}${h:pos+${#str}}"
+  return 0
+}
+
 # Re-flow kubectl's tabwriter columns to span the full box width. Column
 # boundaries come from the header (rows are aligned identically by kubectl);
 # spare width is distributed proportionally to each column's natural width.
@@ -54,19 +222,8 @@ table_reflow() {
   [[ -n $DETAIL_VIEW ]] && return 0    # free-form text, not columns
   [[ -z $TABLE_HEADER ]] && return 0
 
-  # column start positions: a non-space preceded by >=2 spaces starts a column
-  local h=$TABLE_HEADER hlen=${#TABLE_HEADER}
-  local starts=(0) i c gapn=0
-  for (( i = 1; i < hlen; i++ )); do
-    c=${h:i:1}
-    if [[ $c == ' ' ]]; then
-      (( gapn++ ))
-    else
-      (( gapn >= 2 )) && starts+=("$i")
-      gapn=0
-    fi
-  done
-  local ncols=${#starts[@]}
+  table_columns
+  local h=$TABLE_HEADER starts=("${COL_STARTS[@]}") ncols=$COL_N
   (( ncols < 2 )) && return 0
 
   # pass 1: natural (trimmed) width per column, across header + rows
@@ -133,12 +290,14 @@ box_rule() {
 # \e[K per line + \e[J at the end instead of \e[2J avoids full-screen flash.
 table_draw() {
   (( LAYOUT_COLS != COLS )) && table_reflow   # terminal was resized
-  local msg_lines=0 info_n=${#INFO_LINES[@]}
+  local msg_lines=0 info_n=${#INFO_LINES[@]} head_lines=1
   [[ -n $TABLE_MSG ]] && msg_lines=1
+  # detail views (describe/logs) have no column header - reclaim that line
+  [[ -n $DETAIL_VIEW && -z $TABLE_HEADER ]] && head_lines=0
   local inner=$(( COLS - 2 ))
   (( inner < 10 )) && inner=10
-  # info block, top border(title), column header, [msg], bottom border, footer
-  local body_h=$(( ROWS - 4 - msg_lines - info_n ))
+  # info block, top border(title), [column header], [msg], bottom border, footer
+  local body_h=$(( ROWS - 3 - head_lines - msg_lines - info_n ))
   (( body_h < 1 )) && body_h=1
   local n=${#TABLE_ROWS[@]}
 
@@ -165,15 +324,18 @@ table_draw() {
 
   # top border with the title centered inside the rule; width math always uses
   # the plain title (escape bytes have no visible width)
-  local tdisp
-  title=" ${TABLE_TITLE}[${n}] "
+  # [N] is the row count - meaningful for a resource list, but in detail views
+  # (describe/logs/help) TABLE_ROWS holds text lines, so the count is noise
+  local tdisp count="[${n}]"
+  [[ -n $DETAIL_VIEW ]] && count=""
+  title=" ${TABLE_TITLE}${count} "
   tlen=${#title}
   if (( tlen > inner )); then
     title=${title:0:inner}
     tlen=$inner
     tdisp=$'\e[1m'"${title}"$'\e[22m'
   elif [[ -n $TABLE_TITLE_C ]]; then
-    tdisp=" ${TABLE_TITLE_C}"$'\e[36m'"[${n}]"$'\e[0m'" "
+    tdisp=" ${TABLE_TITLE_C}"$'\e[36m'"${count}"$'\e[0m'" "
   else
     tdisp=$'\e[1m'"${title}"$'\e[22m'
   fi
@@ -183,9 +345,14 @@ table_draw() {
   box_rule "$right"
   buf+="${line}${tdisp}${RULE}${BOX_TR}"$'\e[K\r\n'
 
-  # column header (inside the box)
-  printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_HEADER"
-  buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
+  # column header (inside the box) - marker is a display-only overlay, rebuilt
+  # each frame on the pristine header so resize/error ticks never desync it.
+  # Skipped in detail views (no columns) so the body starts right under the title.
+  if (( head_lines )); then
+    table_mark_sort
+    printf -v line '%-*.*s' "$inner" "$inner" " $MARKED_HEADER"
+    buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
+  fi
 
   if (( msg_lines )); then
     printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_MSG"
@@ -232,7 +399,7 @@ table_draw() {
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"
   else
-    printf -v line ' ?:help  a:resources  r:refresh  0:all-ns  g/G:top/btm  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
+    printf -v line ' ?:help  o/O:sort  a:resources  r:refresh  0:all-ns  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
   fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'
