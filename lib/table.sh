@@ -84,8 +84,8 @@ table_cell() {
 # IMPORTANT: sorts rows only - TABLE_HEADER must NOT be touched here. The
 # header defines the column positions the rows are aligned to; changing its
 # length would make reflow slice every row at the wrong offsets (columns
-# bleeding into each other, status colors lost). The visual ^/v marker is
-# added by table_mark_sort AFTER reflow, length-preserving.
+# bleeding into each other, status colors lost). The visual ^/v marker is a
+# display-only overlay applied at draw time by table_mark_sort, never stored.
 SORT_COL=0
 SORT_DESC=""
 table_sort() {
@@ -158,13 +158,23 @@ table_hide_columns() {
   return 0
 }
 
-# Add the ^/v sort marker to the (reflowed) header WITHOUT changing its
-# length: overwrite padding spaces in place, so column positions - which the
-# rows are aligned to - stay exactly as reflow produced them. Reflow's gap is
-# 3 spaces, so there is always room: " ^" right after the header text when it
-# is shorter than the column, else a bare mark in the first gap space. Last
-# column simply appends (nothing to the right to misalign).
+# Build a DISPLAY-ONLY copy of the header with the ^/v sort marker, into
+# $MARKED_HEADER. Never mutates TABLE_HEADER: the marker used to live in the
+# header itself, so any pass that re-ran on a kept header (kubectl-error tick),
+# a reflowed header (resize), or a shifted layout (0-toggle) double-marked,
+# accumulated (`NODE ^ ^ ^`), or mis-derived columns. Keeping it out of the
+# data makes every pass idempotent - draw calls this each frame on the pristine,
+# already-reflowed TABLE_HEADER and prints the result without storing it.
+#
+# Length-preserving: overwrites padding spaces in place so the display copy is
+# the same width as the rows (draw pads both to the box width). " ^" sits right
+# after the header text when the column has slack, a bare mark in the last gap
+# space when the text fills the column. The last column has no gap to its right,
+# so the mark overwrites its own trailing padding; if it fills to the very end
+# we append (draw truncates to the box width, and rows are independent).
+MARKED_HEADER=""
 table_mark_sort() {
+  MARKED_HEADER=$TABLE_HEADER
   (( SORT_COL <= 0 )) && return 0
   [[ -n $DETAIL_VIEW || -z $TABLE_HEADER ]] && return 0
   table_columns
@@ -174,9 +184,14 @@ table_mark_sort() {
   local mark='^'
   [[ -n $SORT_DESC ]] && mark='v'
   table_cell "$TABLE_HEADER" "$j"
-  local start=${COL_STARTS[j]} len=${#CELL} pos str
+  local start=${COL_STARTS[j]} len=${#CELL} pos str h=$TABLE_HEADER hlen=${#TABLE_HEADER}
   if (( j + 1 >= COL_N )); then
-    TABLE_HEADER="${TABLE_HEADER} ${mark}"
+    pos=$(( start + len ))
+    if (( pos + 2 <= hlen )); then          # trailing padding to overwrite
+      MARKED_HEADER="${h:0:pos} ${mark}${h:pos+2}"
+    else
+      MARKED_HEADER="${h} ${mark}"          # cell fills to the end: append
+    fi
     return 0
   fi
   local next=${COL_STARTS[j+1]}
@@ -186,7 +201,7 @@ table_mark_sort() {
     pos=$(( next - 3 ))     # header fills the column: bare mark in the gap
     str=$mark
   fi
-  TABLE_HEADER="${TABLE_HEADER:0:pos}${str}${TABLE_HEADER:pos+${#str}}"
+  MARKED_HEADER="${h:0:pos}${str}${h:pos+${#str}}"
   return 0
 }
 
@@ -319,8 +334,10 @@ table_draw() {
   box_rule "$right"
   buf+="${line}${tdisp}${RULE}${BOX_TR}"$'\e[K\r\n'
 
-  # column header (inside the box)
-  printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_HEADER"
+  # column header (inside the box) - marker is a display-only overlay, rebuilt
+  # each frame on the pristine header so resize/error ticks never desync it
+  table_mark_sort
+  printf -v line '%-*.*s' "$inner" "$inner" " $MARKED_HEADER"
   buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
 
   if (( msg_lines )); then

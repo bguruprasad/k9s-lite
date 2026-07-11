@@ -173,8 +173,8 @@ refresh() {
     if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
   fi
   table_sort
-  table_reflow
-  table_mark_sort   # after reflow: marker overwrites padding, never shifts columns
+  table_reflow      # marker is a draw-time overlay now (table_mark_sort), so the
+                    # pipeline always runs on a pristine, unmarked header
   set_title
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"
@@ -583,6 +583,7 @@ dispatch() {
       refresh ;;
     0)        # explicit all-namespaces toggle (needs cluster-wide list RBAC)
       if [[ -n $CUR_NS ]]; then LAST_NS=$CUR_NS; CUR_NS=""; else CUR_NS=${LAST_NS:-default}; fi
+      SORT_COL=0; SORT_DESC=""   # toggling all-ns adds/removes NAMESPACE: column indices shift
       CURSOR=0; SCROLL=0
       refresh ;;
   esac
