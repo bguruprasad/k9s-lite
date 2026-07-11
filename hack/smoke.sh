@@ -16,17 +16,11 @@ TARGET=${1:-k9s-lite.sh}
 OUT=$(mktemp)
 trap 'rm -f "$OUT"' EXIT
 
-# Root-caused via the debug logging below: on some CI runs, script(1)'s pty
-# isn't fully attached yet when this pipe's first byte arrives, and that byte
-# (sometimes the whole first burst) gets silently dropped - confirmed by
-# watching $OUT grow steadily for 60s while the cursor never left row 0, i.e.
-# the app was alive and redrawing on its normal refresh tick, just never
-# received a single keystroke. Fix: send the whole sequence multiple times
-# with growing initial delay. Once one full pass lands, `q` ends the app and
-# the marker-poll loop below exits immediately - the repeats are a no-op then.
+# Send the key sequence a few times with growing delay: on a cold pty the
+# first burst can arrive before the pty is attached and get dropped.
 feed() {
   local n
-  for n in 1 2 3 4 5 6; do
+  for n in 1 2 3; do
     sleep "$n"
     printf 'jjj'     # move cursor 3 down
     sleep 1; printf '?'       # open help
@@ -39,46 +33,58 @@ feed() {
 # ~/.k9s-lite.conf must not change what the assertions see
 export K9L_DEMO=1 TERM=xterm-256color K9L_CONFIG=/dev/null
 
-# Poll $OUT for the app's own alt-screen-restore marker instead of waiting on
-# script(1)'s process exit - measures our app's real behavior, not a wrapper
-# process's teardown timing. This failed twice transiently on macos-latest
-# runners early on (exactly at the timeout cap, each time); confirmed via the
-# debug lines below that on a normal run the marker appears in 4-5s on every
-# OS, so the transient failures were runner-fleet flakiness, not a real hang.
-# Keep the debug logging - cheap, and decisive if it flakes again.
-CAP=75   # worst case: 6 feed attempts with 1..6s growing delay ≈ 21s + slack
-: > "$OUT"
-start_ts=$(date +%s)
-(
-  case "$(uname -s)" in
-    Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
-    *)      feed | script -qec "bash $TARGET" "$OUT" ;;
-  esac
-) >/dev/null 2>&1 &
-run_pid=$!
+# One full pty session: launch, poll $OUT for the app's alt-screen-restore
+# marker (the real proof our code ran), kill leftovers. Returns 0 when the
+# marker appeared. Polling the file instead of waiting on script(1)'s exit
+# sidesteps that wrapper's slow/odd teardown on some CI runners.
+run_session() {
+  local cap=$1 waited=0 run_pid
+  : > "$OUT"
+  (
+    case "$(uname -s)" in
+      Darwin) feed | script -q "$OUT" /bin/bash "$TARGET" ;;
+      *)      feed | script -qec "bash $TARGET" "$OUT" ;;
+    esac
+  ) >/dev/null 2>&1 &
+  run_pid=$!
 
-waited=0
-while (( waited < CAP )); do
-  if grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
-    echo "debug: clean-exit marker seen at ${waited}s"
+  while (( waited < cap )); do
+    if grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
+      echo "debug: clean-exit marker seen at ${waited}s"
+      kill "$run_pid" 2>/dev/null
+      wait "$run_pid" 2>/dev/null
+      return 0
+    fi
+    if ! kill -0 "$run_pid" 2>/dev/null; then
+      break   # wrapper exited on its own; final grep below decides
+    fi
+    (( waited % 5 == 0 )) && \
+      echo "debug: t=${waited}s wrapper alive, \$OUT is $(wc -c < "$OUT" 2>/dev/null || echo 0) bytes"
+    sleep 1; (( waited++ ))
+  done
+  kill "$run_pid" 2>/dev/null
+  wait "$run_pid" 2>/dev/null
+  grep -qF $'\e[?1049l' "$OUT" 2>/dev/null
+}
+
+# Observed on macos-latest GitHub runners: occasionally a pty session's stdin
+# is dead for its entire lifetime - every keystroke burst is dropped and the
+# app just idles on its refresh tick (output grows, cursor never moves).
+# In-session re-feeding can't fix a dead pty; a FRESH pty session can.
+# Three attempts with a fresh script(1) session each.
+ATTEMPTS=3
+ok=""
+for a in $(seq 1 "$ATTEMPTS"); do
+  echo "debug: pty session attempt $a/$ATTEMPTS"
+  if run_session 40; then
+    ok=1
     break
   fi
-  if ! kill -0 "$run_pid" 2>/dev/null; then
-    echo "debug: wrapper process gone at ${waited}s, \$OUT is $(wc -c < "$OUT" 2>/dev/null || echo 0) bytes"
-    break
-  fi
-  if (( waited % 5 == 0 )); then
-    echo "debug: t=${waited}s wrapper alive, \$OUT is $(wc -c < "$OUT" 2>/dev/null || echo 0) bytes so far"
-  fi
-  sleep 1; (( waited++ ))
+  echo "warn: attempt $a got no clean-exit marker (dead pty?); relaunching"
 done
-echo "debug: loop ended after $(( $(date +%s) - start_ts ))s wall clock, waited=${waited}s"
 
-kill "$run_pid" 2>/dev/null
-wait "$run_pid" 2>/dev/null
-
-if (( waited >= CAP )) && ! grep -qF $'\e[?1049l' "$OUT" 2>/dev/null; then
-  echo "FAIL: smoke test's clean-exit marker never appeared within ${CAP}s - partial output:"
+if [[ -z $ok ]]; then
+  echo "FAIL: no attempt produced the clean-exit marker - partial output of last session:"
   cat "$OUT"
   exit 1
 fi
