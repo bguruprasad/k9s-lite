@@ -70,22 +70,6 @@ act_yaml() {
   run_pager $KUBECTL_BIN get "$RESOURCE" "$SEL_NAME" -n "$SEL_NS" -o yaml
 }
 
-# Follow logs inside `less +F`: live tail; Ctrl-C stops following so you can
-# scroll/search, q returns to the table. less restores the screen on exit, so
-# nothing is left in the shell's scrollback after quitting k9s-lite.
-# type/name form lets kubectl resolve workload kinds (deploy/x, job/x) to a pod.
-act_logs() {
-  act_guard || return 0
-  tui_suspend
-  if [[ ${TERM:-dumb} == dumb ]]; then
-    echo "--- logs $RESOURCE/$SEL_NAME  (Ctrl-C to return) ---"
-    $KUBECTL_BIN logs "$RESOURCE/$SEL_NAME" -n "$SEL_NS" --tail=200 -f
-  else
-    $KUBECTL_BIN logs "$RESOURCE/$SEL_NAME" -n "$SEL_NS" --tail=200 -f 2>&1 | less -R +F
-  fi
-  tui_resume
-}
-
 act_logs_prev() {
   act_guard || return 0
   run_pager $KUBECTL_BIN logs "$RESOURCE/$SEL_NAME" -n "$SEL_NS" --tail=500 --previous

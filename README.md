@@ -87,7 +87,7 @@ Press `?` inside the app for this list, always up to date.
 | `d` | describe (plain, in pager) |
 | `y` | YAML (pager) |
 | `v` | events for the selected object, oldest→newest |
-| `l` | logs, live follow in `less +F` - `Ctrl-C` stops following (scroll/search), `q` returns |
+| `l` | logs rendered inside the box (tail 500) - `f` toggles live follow, `r` reloads, `Esc` back |
 | `p` | previous-container logs (crash loops) |
 | `u` | route URL (OpenShift `:routes`) - shows `https://host/path`, copies to clipboard |
 
@@ -156,11 +156,13 @@ routes included), and events are sorted server-side with `--sort-by`. The UI is
 raw ANSI escapes with a full redraw per tick; the event loop is a single
 `read -t <refresh>` - the timeout doubles as the polling timer.
 
-Interactive actions (logs, exec, edit, pagers) suspend the alt screen, hand the
-real terminal to the child, and restore raw mode after. Pager-based views
-(describe, yaml, logs) leave no trace in your shell's scrollback; `s` (exec)
-and `e` (edit) deliberately run on the normal screen so your session transcript
-survives.
+Logs (`l`) render inside the box like the Enter describe view; follow mode is
+polling-based - the refresh tick re-fetches the tail and pins the view to the
+bottom, no background processes. Interactive actions (exec, edit, pagers)
+suspend the alt screen, hand the real terminal to the child, and restore raw
+mode after. Pager-based views (describe, yaml, previous logs) leave no trace
+in your shell's scrollback; `s` (exec) and `e` (edit) deliberately run on the
+normal screen so your session transcript survives.
 
 The layout is responsive: on wide terminals table columns stretch to fill the
 screen, the key map right-aligns to the edge, and the ASCII logo appears in the
