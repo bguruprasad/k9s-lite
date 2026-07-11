@@ -286,9 +286,12 @@ open_detail() {
   FOLLOW=""
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
-  TABLE_TITLE="describe ${RESOURCE}/${SEL_NAME}"
-  TABLE_TITLE_C=$'\e[1;36m'"describe "$'\e[22;35m'"${RESOURCE}/${SEL_NAME}"$'\e[0m'
-  TABLE_HEADER="namespace: ${SEL_NS}"
+  # title folds in the namespace (dropped for cluster-scoped/all-ns rows with no
+  # SEL_NS); no separate namespace header row - describe's body already has it
+  local path="${SEL_NS:+${SEL_NS}/}${RESOURCE}/${SEL_NAME}"
+  TABLE_TITLE="describe ${path}"
+  TABLE_TITLE_C=$'\e[1;36m'"describe "$'\e[22;35m'"${path}"$'\e[0m'
+  TABLE_HEADER=""
   TABLE_MSG=""
   TABLE_FOOT="j/k:scroll  PgUp/PgDn  g/G:top/btm  q/Esc:back"
   TABLE_ROWS=()
@@ -316,8 +319,10 @@ detail_close() {
 logs_set_title() {
   local suffix="" st=off
   if [[ -n $FOLLOW ]]; then suffix=" [following]"; st=on; fi
-  TABLE_TITLE="logs ${LOGS_KIND}/${LOGS_NAME}${suffix}"
-  TABLE_TITLE_C=$'\e[1;36m'"logs "$'\e[22;35m'"${LOGS_KIND}/${LOGS_NAME}"$'\e[0m'"${suffix}"
+  # namespace folded into the title (dropped when empty); no header row
+  local path="${LOGS_NS:+${LOGS_NS}/}${LOGS_KIND}/${LOGS_NAME}"
+  TABLE_TITLE="logs ${path}${suffix}"
+  TABLE_TITLE_C=$'\e[1;36m'"logs "$'\e[22;35m'"${path}"$'\e[0m'"${suffix}"
   TABLE_FOOT="f:follow(${st})  r:reload  j/k:scroll  g/G:top/btm  q/Esc:back"
 }
 
@@ -358,7 +363,7 @@ open_logs() {
   FOLLOW=""
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
-  TABLE_HEADER="namespace: ${LOGS_NS}  (last 500 lines)"
+  TABLE_HEADER=""
   TABLE_MSG=""
   logs_set_title
   logs_load

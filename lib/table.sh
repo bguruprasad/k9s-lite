@@ -316,15 +316,18 @@ table_draw() {
 
   # top border with the title centered inside the rule; width math always uses
   # the plain title (escape bytes have no visible width)
-  local tdisp
-  title=" ${TABLE_TITLE}[${n}] "
+  # [N] is the row count - meaningful for a resource list, but in detail views
+  # (describe/logs/help) TABLE_ROWS holds text lines, so the count is noise
+  local tdisp count="[${n}]"
+  [[ -n $DETAIL_VIEW ]] && count=""
+  title=" ${TABLE_TITLE}${count} "
   tlen=${#title}
   if (( tlen > inner )); then
     title=${title:0:inner}
     tlen=$inner
     tdisp=$'\e[1m'"${title}"$'\e[22m'
   elif [[ -n $TABLE_TITLE_C ]]; then
-    tdisp=" ${TABLE_TITLE_C}"$'\e[36m'"[${n}]"$'\e[0m'" "
+    tdisp=" ${TABLE_TITLE_C}"$'\e[36m'"${count}"$'\e[0m'" "
   else
     tdisp=$'\e[1m'"${title}"$'\e[22m'
   fi
