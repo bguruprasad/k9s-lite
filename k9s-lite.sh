@@ -173,6 +173,7 @@ refresh() {
   fi
   table_sort
   table_reflow
+  table_mark_sort   # after reflow: marker overwrites padding, never shifts columns
   set_title
   if [[ -n $KUBE_ERR ]]; then
     TABLE_MSG="ERROR: $KUBE_ERR"

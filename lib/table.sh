@@ -80,9 +80,12 @@ table_cell() {
 # Sort TABLE_ROWS by column SORT_COL (1-based; 0 = kubectl's natural order),
 # descending when SORT_DESC is set. Numeric columns (all keys digits-only)
 # sort numerically. One sort(1) fork per refresh - same cost class as the
-# kubectl call that produced the rows. Appends an ASCII ^/v marker to the
-# sorted column's header cell (the header is rebuilt fresh by kubectl on
-# every refresh, so markers never accumulate).
+# kubectl call that produced the rows.
+# IMPORTANT: sorts rows only - TABLE_HEADER must NOT be touched here. The
+# header defines the column positions the rows are aligned to; changing its
+# length would make reflow slice every row at the wrong offsets (columns
+# bleeding into each other, status colors lost). The visual ^/v marker is
+# added by table_mark_sort AFTER reflow, length-preserving.
 SORT_COL=0
 SORT_DESC=""
 table_sort() {
@@ -93,16 +96,6 @@ table_sort() {
   (( COL_N < 1 )) && return 0
   (( SORT_COL > COL_N )) && SORT_COL=$COL_N
   local j=$(( SORT_COL - 1 ))
-
-  # header marker (added even for 0/1 rows so the state is always visible)
-  table_cell "$TABLE_HEADER" "$j"
-  local mark='^' hcell=$CELL hrest=""
-  [[ -n $SORT_DESC ]] && mark='v'
-  if (( j + 1 < COL_N )); then
-    hrest="  ${TABLE_HEADER:${COL_STARTS[j+1]}}"
-  fi
-  TABLE_HEADER="${TABLE_HEADER:0:${COL_STARTS[j]}}${hcell} ${mark}${hrest}"
-
   (( n < 2 )) && return 0
   local sep=$'\x01' i numeric=1 lines=()
   for (( i = 0; i < n; i++ )); do
@@ -119,6 +112,38 @@ table_sort() {
   while IFS= read -r line; do
     TABLE_ROWS+=("${line#*"$sep"}")
   done <<< "$sorted"
+  return 0
+}
+
+# Add the ^/v sort marker to the (reflowed) header WITHOUT changing its
+# length: overwrite padding spaces in place, so column positions - which the
+# rows are aligned to - stay exactly as reflow produced them. Reflow's gap is
+# 3 spaces, so there is always room: " ^" right after the header text when it
+# is shorter than the column, else a bare mark in the first gap space. Last
+# column simply appends (nothing to the right to misalign).
+table_mark_sort() {
+  (( SORT_COL <= 0 )) && return 0
+  [[ -n $DETAIL_VIEW || -z $TABLE_HEADER ]] && return 0
+  table_columns
+  (( COL_N < 1 )) && return 0
+  (( SORT_COL > COL_N )) && SORT_COL=$COL_N
+  local j=$(( SORT_COL - 1 ))
+  local mark='^'
+  [[ -n $SORT_DESC ]] && mark='v'
+  table_cell "$TABLE_HEADER" "$j"
+  local start=${COL_STARTS[j]} len=${#CELL} pos str
+  if (( j + 1 >= COL_N )); then
+    TABLE_HEADER="${TABLE_HEADER} ${mark}"
+    return 0
+  fi
+  local next=${COL_STARTS[j+1]}
+  pos=$(( start + len ))
+  str=" ${mark}"
+  if (( pos + 2 > next - 2 )); then
+    pos=$(( next - 3 ))     # header fills the column: bare mark in the gap
+    str=$mark
+  fi
+  TABLE_HEADER="${TABLE_HEADER:0:pos}${str}${TABLE_HEADER:pos+${#str}}"
   return 0
 }
 
