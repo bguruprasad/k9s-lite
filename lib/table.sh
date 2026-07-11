@@ -284,12 +284,14 @@ box_rule() {
 # \e[K per line + \e[J at the end instead of \e[2J avoids full-screen flash.
 table_draw() {
   (( LAYOUT_COLS != COLS )) && table_reflow   # terminal was resized
-  local msg_lines=0 info_n=${#INFO_LINES[@]}
+  local msg_lines=0 info_n=${#INFO_LINES[@]} head_lines=1
   [[ -n $TABLE_MSG ]] && msg_lines=1
+  # detail views (describe/logs) have no column header - reclaim that line
+  [[ -n $DETAIL_VIEW && -z $TABLE_HEADER ]] && head_lines=0
   local inner=$(( COLS - 2 ))
   (( inner < 10 )) && inner=10
-  # info block, top border(title), column header, [msg], bottom border, footer
-  local body_h=$(( ROWS - 4 - msg_lines - info_n ))
+  # info block, top border(title), [column header], [msg], bottom border, footer
+  local body_h=$(( ROWS - 3 - head_lines - msg_lines - info_n ))
   (( body_h < 1 )) && body_h=1
   local n=${#TABLE_ROWS[@]}
 
@@ -338,10 +340,13 @@ table_draw() {
   buf+="${line}${tdisp}${RULE}${BOX_TR}"$'\e[K\r\n'
 
   # column header (inside the box) - marker is a display-only overlay, rebuilt
-  # each frame on the pristine header so resize/error ticks never desync it
-  table_mark_sort
-  printf -v line '%-*.*s' "$inner" "$inner" " $MARKED_HEADER"
-  buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
+  # each frame on the pristine header so resize/error ticks never desync it.
+  # Skipped in detail views (no columns) so the body starts right under the title.
+  if (( head_lines )); then
+    table_mark_sort
+    printf -v line '%-*.*s' "$inner" "$inner" " $MARKED_HEADER"
+    buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
+  fi
 
   if (( msg_lines )); then
     printf -v line '%-*.*s' "$inner" "$inner" " $TABLE_MSG"
