@@ -32,8 +32,14 @@ feed() {
     sleep 1; printf '?'       # open help
     sleep 1; printf '\033'    # Esc back to table
   done
-  sleep 1; printf 'o'         # sort by first column (once: marks NAME)
-  sleep 3; printf 'q'         # let the sorted frame render, then quit
+  # Sort once (marks NAME), then nudge extra full redraws with 'r' and a long
+  # settle: on a CPU-starved macOS runner a single post-'o' frame can fail to
+  # flush to the pty before quit. Repeated refreshes give several capture
+  # windows for 'NAME ^' to land in $OUT. Only then quit.
+  sleep 1; printf 'o'
+  sleep 2; printf 'r'
+  sleep 2; printf 'r'
+  sleep 3; printf 'q'
 }
 
 # K9L_CONFIG=/dev/null keeps the test hermetic - a developer's own
