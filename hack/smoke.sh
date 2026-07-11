@@ -20,14 +20,20 @@ trap 'rm -f "$OUT"' EXIT
 # first burst can arrive before the pty is attached and get dropped.
 feed() {
   local n
+  # Cursor/help/Esc are retried in 3 bursts because a cold pty can drop the
+  # first burst. Sorting is NOT part of that loop: each 'o' press cycles the
+  # sort column (NAME -> READY -> ...), so repeating it would move the marker
+  # off NAME and the 'NAME ^' assertion would flake. Press 'o' exactly once,
+  # after the bursts, and give the redraw a generous settle before quitting -
+  # macOS runners are slow to flush the post-sort frame to the pty.
   for n in 1 2 3; do
     sleep "$n"
     printf 'jjj'     # move cursor 3 down
     sleep 1; printf '?'       # open help
     sleep 1; printf '\033'    # Esc back to table
-    sleep 1; printf 'o'       # sort by first column
-    sleep 1; printf 'q'       # quit
   done
+  sleep 1; printf 'o'         # sort by first column (once: marks NAME)
+  sleep 3; printf 'q'         # let the sorted frame render, then quit
 }
 
 # K9L_CONFIG=/dev/null keeps the test hermetic - a developer's own
