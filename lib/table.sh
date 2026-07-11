@@ -12,8 +12,10 @@ TABLE_FOOT=""      # overrides the default footer hint when set (picker mode)
 CURSOR=0
 SCROLL=0
 ROW_SGR=""
-DETAIL_VIEW=""     # when set: rows are describe-style text - cyan "Key:" prefixes,
-                   # no cursor bar, no column re-flow
+DETAIL_VIEW=""     # when set: rows are free-form text - no cursor bar, no column
+                   # re-flow, cursor acts as the scroll position
+DETAIL_KV=""       # when also set: colorize "Key:" prefixes cyan (describe output;
+                   # log lines must stay uncolored - timestamps contain colons)
 DKEY_SGR=$'\e[36m'
 
 # box-drawing characters (K9L_ASCII=1 for plain +---+ on odd terminals)
@@ -200,7 +202,7 @@ table_draw() {
         printf -v line '%-*.*s' "$inner" "$inner" " ${row}"
         row_color "$row"
         dk=${line%%:*}
-        if [[ $line == *:* && ${#dk} -le 40 ]]; then
+        if [[ -n $DETAIL_KV && $line == *:* && ${#dk} -le 40 ]]; then
           dv=${line#*:}
           buf+="${BOX_V}${DKEY_SGR}${dk}"$'\e[0m'":${ROW_SGR}${dv}"$'\e[0m'"${BOX_V}"
         else

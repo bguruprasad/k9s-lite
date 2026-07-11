@@ -25,7 +25,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.10.0"
+K9L_VERSION="0.11.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -238,9 +238,15 @@ filter_mode() {
   refresh
 }
 
-# --- detail view: Enter on a row renders colorized describe inside the box
+# --- detail view: Enter on a row renders colorized describe inside the box;
+#     'l' renders logs in the same box (LOGS_VIEW set), with optional follow
 SAVED_CURSOR=0
 SAVED_SCROLL=0
+LOGS_VIEW=""
+FOLLOW=""
+LOGS_KIND=""
+LOGS_NAME=""
+LOGS_NS=""
 
 open_detail() {
   act_guard || return 0
@@ -261,6 +267,7 @@ open_detail() {
   fi
   MODE=detail
   DETAIL_VIEW=1
+  DETAIL_KV=1
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
   TABLE_TITLE="describe ${RESOURCE}/${SEL_NAME}"
@@ -278,10 +285,61 @@ open_detail() {
 detail_close() {
   MODE=table
   DETAIL_VIEW=""
+  DETAIL_KV=""
+  LOGS_VIEW=""
+  FOLLOW=""
   TABLE_FOOT=""
   CURSOR=$SAVED_CURSOR
   SCROLL=$SAVED_SCROLL
   refresh
+}
+
+# --- in-box logs (l): tail by default, f toggles follow, r reloads.
+# Follow is polling-based: the main loop re-fetches on each refresh tick and
+# pins the view to the bottom - no background processes, fits the event loop.
+logs_set_title() {
+  local suffix="" st=off
+  if [[ -n $FOLLOW ]]; then suffix=" [following]"; st=on; fi
+  TABLE_TITLE="logs ${LOGS_KIND}/${LOGS_NAME}${suffix}"
+  TABLE_TITLE_C=$'\e[1;36m'"logs "$'\e[22;35m'"${LOGS_KIND}/${LOGS_NAME}"$'\e[0m'"${suffix}"
+  TABLE_FOOT="f:follow(${st})  r:reload  j/k:scroll  g/G:top/btm  q/Esc:back"
+}
+
+logs_load() {
+  local out line
+  out=$($KUBECTL_BIN logs "${LOGS_KIND}/${LOGS_NAME}" -n "$LOGS_NS" --tail=500 2>&1)
+  out=${out//$'\r'/}
+  # tabs render wider than the 1 char the padder counts (see open_detail)
+  if [[ $out == *$'\t'* ]]; then
+    if command -v expand >/dev/null 2>&1; then
+      out=$(printf '%s\n' "$out" | expand)
+    else
+      out=${out//$'\t'/        }
+    fi
+  fi
+  TABLE_ROWS=()
+  while IFS= read -r line; do
+    TABLE_ROWS+=("$line")
+  done <<< "$out"
+}
+
+open_logs() {
+  act_guard || return 0
+  LOGS_KIND=$RESOURCE
+  LOGS_NAME=$SEL_NAME
+  LOGS_NS=$SEL_NS
+  MODE=detail
+  DETAIL_VIEW=1
+  DETAIL_KV=""      # log lines keep their own text; timestamps contain colons
+  LOGS_VIEW=1
+  FOLLOW=""
+  SAVED_CURSOR=$CURSOR
+  SAVED_SCROLL=$SCROLL
+  TABLE_HEADER="namespace: ${LOGS_NS}  (last 500 lines)"
+  TABLE_MSG=""
+  logs_set_title
+  logs_load
+  table_bottom      # newest lines first in view
 }
 
 dispatch_detail() {
@@ -294,6 +352,14 @@ dispatch_detail() {
     PGUP)       table_move $(( -(ROWS - 4) )) ;;
     WHEEL_DOWN) table_move 3 ;;
     WHEEL_UP)   table_move -3 ;;
+    f)
+      if [[ -n $LOGS_VIEW ]]; then
+        if [[ -n $FOLLOW ]]; then FOLLOW=""; else FOLLOW=1; fi
+        logs_set_title
+        if [[ -n $FOLLOW ]]; then logs_load; table_bottom; fi
+      fi ;;
+    r)
+      [[ -n $LOGS_VIEW ]] && logs_load ;;
     q|Q|ESC|ENTER) detail_close ;;
   esac
 }
@@ -302,6 +368,7 @@ dispatch_detail() {
 open_help() {
   MODE=detail
   DETAIL_VIEW=1
+  DETAIL_KV=1
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
   # TABLE_TITLE must match TABLE_TITLE_C's visible width - it drives the border math
@@ -317,7 +384,7 @@ open_help() {
     "  d:            describe in pager"
     "  y:            yaml in pager"
     "  v:            events for the selected object"
-    "  l:            logs, live follow in less +F (Ctrl-C to scroll/search)"
+    "  l:            logs inside the box (tail 500) - f follows, r reloads"
     "  p:            previous-container logs (crash loops)"
     "  u:            route URL (OpenShift :routes) - shows https://host/path, copies to clipboard"
     ""
@@ -483,7 +550,7 @@ dispatch() {
     d)        act_describe ;;
     y)        act_yaml ;;
     v)        act_events ;;
-    l)        act_logs ;;
+    l)        open_logs ;;
     p)        act_logs_prev ;;
     u)        act_route_url ;;
     s)        act_shell ;;
@@ -517,6 +584,9 @@ main() {
       dispatch "$KEY"
     elif [[ $MODE == table ]]; then
       refresh            # tick refresh only in table mode - don't clobber the picker
+    elif [[ $MODE == detail && -n $LOGS_VIEW && -n $FOLLOW ]]; then
+      logs_load          # follow mode: poll new lines each tick, stay at bottom
+      table_bottom
     fi
     term_update_size     # mintty resize isn't signalled; poll each pass
     (( INFO_COLS != COLS )) && build_info
