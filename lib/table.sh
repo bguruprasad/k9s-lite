@@ -97,10 +97,16 @@ table_sort() {
   (( SORT_COL > COL_N )) && SORT_COL=$COL_N
   local j=$(( SORT_COL - 1 ))
   (( n < 2 )) && return 0
-  local sep=$'\x01' i numeric=1 lines=()
+  # Numeric when every cell is an integer optionally followed by " (...)" -
+  # covers plain counts and kubectl's RESTARTS "12 (3h ago)" form, whose leading
+  # int is what we want to order by (sort -n reads the prefix, ignores the rest).
+  # Deliberately NOT numeric for "1/1" (READY) or "2h/3d" (AGE): a leading-int
+  # key would sort those wrong/coarse, so they stay lexical as before.
+  local sep=$'\x01' i numeric=1 lines=() head
   for (( i = 0; i < n; i++ )); do
     table_cell "${TABLE_ROWS[i]}" "$j"
-    [[ $CELL == *[!0-9]* || -z $CELL ]] && numeric=0
+    head=${CELL%% *}                       # leading token, before any " (...)"
+    [[ -z $head || $head == *[!0-9]* ]] && numeric=0
     lines+=("${CELL}${sep}${TABLE_ROWS[i]}")
   done
   local sortargs=(-t "$sep" "-k1,1")
