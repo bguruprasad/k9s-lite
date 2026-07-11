@@ -208,6 +208,16 @@ prompt_input() {
   printf '\e[?25l'
 }
 
+# Change the active namespace. Resetting the sort is mandatory whenever this
+# crosses the all-ns (empty CUR_NS) <-> specific-ns boundary: the NAMESPACE
+# column appears/disappears, shifting every column index, so a stale SORT_COL
+# would sort by and mark the wrong column. Resetting unconditionally is simplest
+# and matches switch_resource - the user re-cycles o if they want a sort.
+ns_change() {
+  CUR_NS=$1
+  SORT_COL=0; SORT_DESC=""
+}
+
 # switch resource kind; kubectl validates, revert to previous view on error
 switch_resource() {
   local old=$RESOURCE
@@ -457,7 +467,7 @@ open_ns_picker() {
     # namespace listing is often Forbidden with ns-scoped RBAC - type it instead
     prompt_input "can't list namespaces (${KUBE_ERR}) - enter namespace: "
     if [[ -n $REPLY_STR ]]; then
-      CUR_NS=$REPLY_STR
+      ns_change "$REPLY_STR"
       CURSOR=0; SCROLL=0
     fi
     refresh
@@ -492,12 +502,13 @@ PENDING_RES=""
 picker_apply() { # $1 selected value
   [[ -z $1 ]] && return
   case "$PICKER_KIND" in
-    ns)  CUR_NS=$1 ;;
+    ns)  ns_change "$1" ;;
     res) PENDING_RES=$1 ;;   # applied by picker_close so revert-on-error works
     ctx)
       if kube_use_context "$1"; then
         CUR_CTX=$1
         kube_ctx_namespace   # namespace follows the new context
+        SORT_COL=0; SORT_DESC=""   # new context's ns may flip all-ns<->specific: columns shift
         kube_cluster_info
         build_info
       fi ;;
