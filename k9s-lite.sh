@@ -268,6 +268,8 @@ open_detail() {
   MODE=detail
   DETAIL_VIEW=1
   DETAIL_KV=1
+  LOGS_VIEW=""      # defensive: never inherit logs state into another detail view
+  FOLLOW=""
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
   TABLE_TITLE="describe ${RESOURCE}/${SEL_NAME}"
@@ -309,6 +311,13 @@ logs_load() {
   local out line
   out=$($KUBECTL_BIN logs "${LOGS_KIND}/${LOGS_NAME}" -n "$LOGS_NS" --tail=500 2>&1)
   out=${out//$'\r'/}
+  # Apps often log with ANSI color codes; escape bytes break the padder's
+  # width math (border shift, color bleed, truncation mid-sequence). Strip
+  # CSI sequences and stray ESCs. $'..' quoting embeds a literal ESC so the
+  # sed script works on both BSD and GNU sed.
+  if [[ $out == *$'\e'* ]]; then
+    out=$(printf '%s\n' "$out" | sed -e $'s/\x1b\\[[0-9;?]*[a-zA-Z]//g' -e $'s/\x1b//g')
+  fi
   # tabs render wider than the 1 char the padder counts (see open_detail)
   if [[ $out == *$'\t'* ]]; then
     if command -v expand >/dev/null 2>&1; then
@@ -369,6 +378,8 @@ open_help() {
   MODE=detail
   DETAIL_VIEW=1
   DETAIL_KV=1
+  LOGS_VIEW=""      # defensive: never inherit logs state into another detail view
+  FOLLOW=""
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
   # TABLE_TITLE must match TABLE_TITLE_C's visible width - it drives the border math
