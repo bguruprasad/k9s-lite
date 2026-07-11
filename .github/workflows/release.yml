@@ -10,7 +10,8 @@ on:
       - 'v*'
 
 permissions:
-  contents: write   # needed to create the release
+  contents: write        # create the release, push the pin-bump branch
+  pull-requests: write   # open the README pin-bump PR
 
 jobs:
   release:
@@ -45,3 +46,35 @@ jobs:
             dist/k9s-lite.dist.sh \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
+
+      # Point the README install commands at the freshly released tag. Only the
+      # two versioned `download/vX.Y.Z/` URLs change; the `latest/download/` one
+      # has no version and is left alone.
+      #
+      # main is protected by a ruleset requiring a reviewed PR, and GitHub won't
+      # let the Actions token bypass it on a personal (non-org) repo. So instead
+      # of pushing to main, open a PR with the bump - the maintainer merges it
+      # with one click (gh pr merge --admin), consistent with the gatekeeping
+      # model. Idempotent: re-running the same tag finds nothing to change.
+      - name: open PR to bump README install pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          git checkout -B "chore/pin-${GITHUB_REF_NAME}" origin/main
+          sed -i -E "s#(releases/download/)v[0-9]+\.[0-9]+\.[0-9]+(/k9s-lite\.dist\.sh)#\1${GITHUB_REF_NAME}\2#g" README.md
+          if git diff --quiet README.md; then
+            echo "README pins already at ${GITHUB_REF_NAME}, no PR needed"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: pin README install commands to ${GITHUB_REF_NAME}"
+          git push -f origin "chore/pin-${GITHUB_REF_NAME}"
+          gh pr create \
+            --base main \
+            --head "chore/pin-${GITHUB_REF_NAME}" \
+            --title "docs: pin README install commands to ${GITHUB_REF_NAME}" \
+            --body "Automated by the release workflow after publishing ${GITHUB_REF_NAME}. Points the two versioned install URLs in the README at the new tag. Merge with \`--admin\`." \
+            2>&1 || echo "PR may already exist for this tag; branch updated"
