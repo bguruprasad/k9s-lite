@@ -260,9 +260,11 @@ Releases are automated. To cut one:
 
 The [release workflow](.github/workflows/release.yml) then verifies the tag
 matches `K9L_VERSION`, builds `dist/k9s-lite.dist.sh`, re-runs the smoke test,
-and publishes a GitHub Release with that single file attached. Afterwards,
-bump the install-command version pins near the top of this README to the new
-tag.
+and publishes a GitHub Release with that single file attached. It also opens a
+small PR bumping the two versioned install URLs in this README to the new tag -
+merge that PR (`gh pr merge --admin`) to finish. (The workflow opens a PR rather
+than committing to `main` directly because `main` is protection-ruled and GitHub
+doesn't allow the Actions token to bypass that on a personal repo.)
 
 ## License
 
