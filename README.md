@@ -76,6 +76,7 @@ Press `?` inside the app for this list, always up to date.
 | `/` | filter rows (case-insensitive); `Esc` clears |
 | `n` | namespace picker (typed entry if listing is Forbidden) |
 | `c` | context picker (switches kubeconfig current-context) |
+| `o` / `O` | cycle sort column / flip direction - `^`/`v` marks the sorted header; numeric columns sort numerically |
 | `0` | toggle all-namespaces (needs cluster-wide list RBAC) |
 | `?` / `r` / `q` | help / refresh now / quit |
 
@@ -116,6 +117,7 @@ Environment variables:
 | `K9L_NAMESPACE` | unset | starting namespace (same as `-n`, lower precedence) |
 | `K9L_DEMO` | unset | `1` = built-in demo data, no cluster needed |
 | `K9L_ASCII` | unset | `1` = plain `+---+` borders for terminals without Unicode box drawing |
+| `K9L_HIDE_COLUMNS` | `NOMINATED NODE,READINESS GATES` | comma-separated header names to hide (kubectl `-o wide` extras that are almost always `<none>`); set empty to show everything |
 | `K9L_CONFIG` | `~/.k9s-lite.conf` | path to the config file |
 
 Both forms take the same flags and variables - the examples work identically
@@ -196,6 +198,60 @@ Tests (`hack/smoke.sh`) drive the real TUI in a pseudo-terminal via
 them on Ubuntu (bash 5) and macOS (bash 3.2), against both the repo layout
 and the single-file build (`hack/build-dist.sh`, output in `dist/`,
 gitignored) so the two forms can't drift apart.
+
+## Contributing
+
+Contributions are welcome. The workflow:
+
+1. **Fork** the repo and clone your fork.
+2. **Branch** off `main`: `git checkout -b feat/short-name` (or `fix/...`).
+3. **Make your change**, keeping the conventions below.
+4. **Run the checks locally** before pushing:
+
+   ```sh
+   shellcheck -S warning k9s-lite.sh lib/*.sh hack/*.sh   # if you have shellcheck
+   bash hack/smoke.sh                                     # runs the TUI in a pty
+   bash hack/build-dist.sh && bash hack/smoke.sh dist/k9s-lite.dist.sh
+   ```
+5. **Open a pull request** against `main`. CI (shellcheck + pty smoke on
+   Ubuntu bash 5 and macOS bash 3.2, source and single-file build) must be
+   green. Keep commits small and focused.
+
+### Conventions
+
+These aren't style nits - they're the constraints that keep k9s-lite working
+in the locked-down environments it targets:
+
+- **bash 3.2 is the floor.** macOS ships it, and CI tests against it. No
+  `${var^^}`, no associative arrays, no `mapfile`, nothing bash 4+ only.
+- **No new dependencies.** `bash`, `kubectl`/`oc`, and coreutils only. No
+  `jq`, no Python, nothing you'd have to install.
+- **No subshells in the render loop.** Process forks are expensive under Git
+  Bash; the draw path (`table_draw` and what it calls) uses pure parameter
+  expansion, no `$(...)`. Forking once per refresh (e.g. the `kubectl` call or
+  a single `sort`) is fine; forking per row is not.
+- **Watch multibyte and escape bytes.** `printf` pads by bytes, so a stray tab,
+  em dash, or ANSI sequence in content throws off the box-border width math.
+  Strip or expand it (see how `open_detail`/`logs_load` handle tabs and colors).
+- **Plain ASCII `-`, not em dashes**, in code, comments, strings, and docs.
+- **Update the README and the in-app `?` help** in the same PR when you add or
+  change a key binding, flag, or environment variable - the two must stay in
+  sync.
+- **Add or extend a smoke assertion** for user-visible behavior where it's
+  practical, so it can't silently regress.
+
+### Releases (maintainers)
+
+Releases are automated. To cut one:
+
+1. Bump `K9L_VERSION` in `k9s-lite.sh` and merge that to `main`.
+2. Tag and push: `git tag v0.12.0 && git push origin v0.12.0`.
+
+The [release workflow](.github/workflows/release.yml) then verifies the tag
+matches `K9L_VERSION`, builds `dist/k9s-lite.dist.sh`, re-runs the smoke test,
+and publishes a GitHub Release with that single file attached. Afterwards,
+bump the install-command version pins near the top of this README to the new
+tag.
 
 ## License
 

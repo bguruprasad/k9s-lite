@@ -1,0 +1,47 @@
+name: Release
+
+# Cutting a release is just: push a vX.Y.Z tag. This builds the single-file
+# dist and publishes a GitHub Release with k9s-lite.dist.sh attached - the same
+# artifact CI already lints and smoke-tests on every commit, so no hand-built
+# file is ever uploaded.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Guard against the classic footgun: tagging v0.12.0 while the source
+      # still says K9L_VERSION="0.11.0". The version users see must match the tag.
+      - name: verify tag matches K9L_VERSION
+        run: |
+          tag=${GITHUB_REF_NAME#v}
+          src=$(sed -n 's/^K9L_VERSION="\(.*\)"/\1/p' k9s-lite.sh)
+          echo "tag=$tag  K9L_VERSION=$src"
+          if [[ "$tag" != "$src" ]]; then
+            echo "::error::tag v$tag does not match K9L_VERSION=$src in k9s-lite.sh - bump the source and re-tag"
+            exit 1
+          fi
+
+      - name: build single-file dist
+        run: bash hack/build-dist.sh
+
+      # A tagged commit that can't pass smoke shouldn't ship. Cheap re-run.
+      - name: pty smoke test (dist build)
+        run: bash hack/smoke.sh dist/k9s-lite.dist.sh
+
+      - name: publish release with dist asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/k9s-lite.dist.sh \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
