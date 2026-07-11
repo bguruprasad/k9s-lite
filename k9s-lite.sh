@@ -25,7 +25,7 @@ source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 
-K9L_VERSION="0.11.0"
+K9L_VERSION="0.12.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
@@ -171,6 +171,7 @@ refresh() {
     shopt -u nocasematch
     if (( ${#kept[@]} )); then TABLE_ROWS=("${kept[@]}"); else TABLE_ROWS=(); fi
   fi
+  table_sort
   table_reflow
   set_title
   if [[ -n $KUBE_ERR ]]; then
@@ -209,6 +210,7 @@ prompt_input() {
 switch_resource() {
   local old=$RESOURCE
   RESOURCE=$1
+  SORT_COL=0; SORT_DESC=""   # different kind, different columns
   CURSOR=0; SCROLL=0
   refresh
   if [[ -n $KUBE_ERR ]]; then
@@ -413,6 +415,7 @@ open_help() {
     "  a:            browse every resource kind the cluster supports"
     "  n:            namespace picker (type a name if listing is forbidden)"
     "  c:            context picker"
+    "  o / O:        cycle sort column / flip direction (^ or v marks the header)"
     "  ?:            this help"
     "  q / Esc:      back / quit"
     ""
@@ -568,6 +571,13 @@ dispatch() {
     e)        act_edit ;;
     $'\004')  act_delete ;;    # Ctrl-D
     ESC)      [[ -n $FILTER ]] && { FILTER=""; CURSOR=0; SCROLL=0; refresh; } ;;
+    o)        # cycle sort column: natural -> col1 -> ... -> colN -> natural
+      table_columns
+      SORT_COL=$(( (SORT_COL + 1) % (COL_N + 1) ))
+      refresh ;;
+    O)        # flip sort direction
+      if [[ -n $SORT_DESC ]]; then SORT_DESC=""; else SORT_DESC=1; fi
+      refresh ;;
     0)        # explicit all-namespaces toggle (needs cluster-wide list RBAC)
       if [[ -n $CUR_NS ]]; then LAST_NS=$CUR_NS; CUR_NS=""; else CUR_NS=${LAST_NS:-default}; fi
       CURSOR=0; SCROLL=0

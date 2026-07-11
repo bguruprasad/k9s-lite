@@ -43,6 +43,85 @@ row_color() {
   esac
 }
 
+# table_columns - detect column start positions from TABLE_HEADER into
+# COL_STARTS/COL_N (kubectl's tabwriter aligns rows identically to the
+# header; a non-space preceded by >=2 spaces starts a column).
+COL_STARTS=()
+COL_N=0
+table_columns() {
+  COL_STARTS=(0)
+  local h=$TABLE_HEADER hlen=${#TABLE_HEADER} i c gapn=0
+  for (( i = 1; i < hlen; i++ )); do
+    c=${h:i:1}
+    if [[ $c == ' ' ]]; then
+      (( gapn++ ))
+    else
+      (( gapn >= 2 )) && COL_STARTS+=("$i")
+      gapn=0
+    fi
+  done
+  COL_N=${#COL_STARTS[@]}
+}
+
+# table_cell <row> <col-index-0-based> - trimmed cell text into $CELL
+table_cell() {
+  local row=$1 j=$2 clen sp
+  local start=${COL_STARTS[j]}
+  if (( j + 1 < COL_N )); then
+    clen=$(( ${COL_STARTS[j+1]} - start ))
+    CELL=${row:start:clen}
+  else
+    CELL=${row:start}
+  fi
+  sp=${CELL##*[! ]}; CELL=${CELL%"$sp"}
+  CELL="${CELL#"${CELL%%[![:space:]]*}"}"
+}
+
+# Sort TABLE_ROWS by column SORT_COL (1-based; 0 = kubectl's natural order),
+# descending when SORT_DESC is set. Numeric columns (all keys digits-only)
+# sort numerically. One sort(1) fork per refresh - same cost class as the
+# kubectl call that produced the rows. Appends an ASCII ^/v marker to the
+# sorted column's header cell (the header is rebuilt fresh by kubectl on
+# every refresh, so markers never accumulate).
+SORT_COL=0
+SORT_DESC=""
+table_sort() {
+  (( SORT_COL <= 0 )) && return 0
+  [[ -n $DETAIL_VIEW || -z $TABLE_HEADER ]] && return 0
+  local n=${#TABLE_ROWS[@]}
+  table_columns
+  (( COL_N < 1 )) && return 0
+  (( SORT_COL > COL_N )) && SORT_COL=$COL_N
+  local j=$(( SORT_COL - 1 ))
+
+  # header marker (added even for 0/1 rows so the state is always visible)
+  table_cell "$TABLE_HEADER" "$j"
+  local mark='^' hcell=$CELL hrest=""
+  [[ -n $SORT_DESC ]] && mark='v'
+  if (( j + 1 < COL_N )); then
+    hrest="  ${TABLE_HEADER:${COL_STARTS[j+1]}}"
+  fi
+  TABLE_HEADER="${TABLE_HEADER:0:${COL_STARTS[j]}}${hcell} ${mark}${hrest}"
+
+  (( n < 2 )) && return 0
+  local sep=$'\x01' i numeric=1 lines=()
+  for (( i = 0; i < n; i++ )); do
+    table_cell "${TABLE_ROWS[i]}" "$j"
+    [[ $CELL == *[!0-9]* || -z $CELL ]] && numeric=0
+    lines+=("${CELL}${sep}${TABLE_ROWS[i]}")
+  done
+  local sortargs=(-t "$sep" "-k1,1")
+  (( numeric )) && sortargs+=(-n)
+  [[ -n $SORT_DESC ]] && sortargs+=(-r)
+  local sorted line
+  sorted=$(printf '%s\n' "${lines[@]}" | LC_ALL=C sort "${sortargs[@]}")
+  TABLE_ROWS=()
+  while IFS= read -r line; do
+    TABLE_ROWS+=("${line#*"$sep"}")
+  done <<< "$sorted"
+  return 0
+}
+
 # Re-flow kubectl's tabwriter columns to span the full box width. Column
 # boundaries come from the header (rows are aligned identically by kubectl);
 # spare width is distributed proportionally to each column's natural width.
@@ -54,19 +133,8 @@ table_reflow() {
   [[ -n $DETAIL_VIEW ]] && return 0    # free-form text, not columns
   [[ -z $TABLE_HEADER ]] && return 0
 
-  # column start positions: a non-space preceded by >=2 spaces starts a column
-  local h=$TABLE_HEADER hlen=${#TABLE_HEADER}
-  local starts=(0) i c gapn=0
-  for (( i = 1; i < hlen; i++ )); do
-    c=${h:i:1}
-    if [[ $c == ' ' ]]; then
-      (( gapn++ ))
-    else
-      (( gapn >= 2 )) && starts+=("$i")
-      gapn=0
-    fi
-  done
-  local ncols=${#starts[@]}
+  table_columns
+  local h=$TABLE_HEADER starts=("${COL_STARTS[@]}") ncols=$COL_N
   (( ncols < 2 )) && return 0
 
   # pass 1: natural (trimmed) width per column, across header + rows
@@ -232,7 +300,7 @@ table_draw() {
   if [[ -n $TABLE_FOOT ]]; then
     line=" $TABLE_FOOT"
   else
-    printf -v line ' ?:help  a:resources  r:refresh  0:all-ns  g/G:top/btm  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
+    printf -v line ' ?:help  o/O:sort  a:resources  r:refresh  0:all-ns  Esc:clear-filter  [%dx%d]' "$COLS" "$ROWS"
   fi
   pad "$line"
   buf+=$'\e[7m'"$PADDED"$'\e[27m\e[J'

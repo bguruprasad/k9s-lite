@@ -76,6 +76,7 @@ Press `?` inside the app for this list, always up to date.
 | `/` | filter rows (case-insensitive); `Esc` clears |
 | `n` | namespace picker (typed entry if listing is Forbidden) |
 | `c` | context picker (switches kubeconfig current-context) |
+| `o` / `O` | cycle sort column / flip direction - `^`/`v` marks the sorted header; numeric columns sort numerically |
 | `0` | toggle all-namespaces (needs cluster-wide list RBAC) |
 | `?` / `r` / `q` | help / refresh now / quit |
 
