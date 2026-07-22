@@ -54,6 +54,30 @@ spec:
           # chatty logs so `l` (logs follow) has something to stream
           command: ["sh", "-c", "while true; do echo \"$(date) api heartbeat\"; sleep 5; done"]
 ---
+# Very long log lines: exercises the logs view's word-wrap (w) and horizontal
+# scroll (left/right when wrap is off). Each line is ~590 chars, far wider than
+# any terminal, so truncation/pan/wrap are all visible in `l`.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: longlogger
+  namespace: demo
+spec:
+  containers:
+    - name: longlogger
+      image: busybox
+      command:
+        - sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            printf '%s LONGLINE #%04d ' "$(date -u +%H:%M:%S)" "$i"
+            awk 'BEGIN{for(n=0;n<12;n++)printf "the-quick-brown-fox-jumps-over-the-lazy-dog-%02d ", n; print "END"}'
+            sleep 2
+          done
+---
 # CrashLoopBackOff: exits immediately, forever
 apiVersion: v1
 kind: Pod
