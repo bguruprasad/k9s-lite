@@ -317,13 +317,16 @@ detail_close() {
 # Follow is polling-based: the main loop re-fetches on each refresh tick and
 # pins the view to the bottom - no background processes, fits the event loop.
 logs_set_title() {
-  local suffix="" st=off
+  local suffix="" st=off wt=off wrapkeys
   if [[ -n $FOLLOW ]]; then suffix=" [following]"; st=on; fi
+  if [[ -n $LOGS_WRAP ]]; then suffix+=" [wrap]"; wt=on; fi
   # namespace folded into the title (dropped when empty); no header row
   local path="${LOGS_NS:+${LOGS_NS}/}${LOGS_KIND}/${LOGS_NAME}"
   TABLE_TITLE="logs ${path}${suffix}"
   TABLE_TITLE_C=$'\e[1;36m'"logs "$'\e[22;35m'"${path}"$'\e[0m'"${suffix}"
-  TABLE_FOOT="f:follow(${st})  r:reload  j/k:scroll  g/G:top/btm  q/Esc:back"
+  # h-scroll hint only makes sense with wrap off
+  if [[ -n $LOGS_WRAP ]]; then wrapkeys="w:wrap(${wt})"; else wrapkeys="w:wrap(${wt})  <-/->:pan"; fi
+  TABLE_FOOT="f:follow(${st})  ${wrapkeys}  r:reload  j/k:scroll  g/G:top/btm  q/Esc:back"
 }
 
 logs_load() {
@@ -349,6 +352,8 @@ logs_load() {
   while IFS= read -r line; do
     TABLE_ROWS+=("$line")
   done <<< "$out"
+  logs_measure                      # widest line clamps horizontal scroll
+  [[ -n $LOGS_WRAP ]] && logs_wrap_build
 }
 
 open_logs() {
@@ -361,6 +366,8 @@ open_logs() {
   DETAIL_KV=""      # log lines keep their own text; timestamps contain colons
   LOGS_VIEW=1
   FOLLOW=""
+  LOGS_WRAP=""      # default: no wrap - LEFT/RIGHT pan horizontally
+  LOGS_HSCROLL=0
   SAVED_CURSOR=$CURSOR
   SAVED_SCROLL=$SCROLL
   TABLE_HEADER=""
@@ -374,6 +381,8 @@ dispatch_detail() {
   case "$1" in
     j|DOWN)     table_move 1 ;;
     k|UP)       table_move -1 ;;
+    LEFT)       [[ -n $LOGS_VIEW ]] && logs_hscroll -$LOGS_HSTEP ;;
+    RIGHT)      [[ -n $LOGS_VIEW ]] && logs_hscroll $LOGS_HSTEP ;;
     g|HOME)     table_top ;;
     G|END)      table_bottom ;;
     PGDN)       table_move $(( ROWS - 4 )) ;;
@@ -385,6 +394,11 @@ dispatch_detail() {
         if [[ -n $FOLLOW ]]; then FOLLOW=""; else FOLLOW=1; fi
         logs_set_title
         if [[ -n $FOLLOW ]]; then logs_load; table_bottom; fi
+      fi ;;
+    w)
+      if [[ -n $LOGS_VIEW ]]; then
+        logs_toggle_wrap   # off->on rebuilds the wrap buffer, resets h-offset
+        logs_set_title
       fi ;;
     r)
       [[ -n $LOGS_VIEW ]] && logs_load ;;
@@ -415,6 +429,7 @@ open_help() {
     "  y:            yaml in pager"
     "  v:            events for the selected object"
     "  l:            logs inside the box (tail 500) - f follows, r reloads"
+    "                 w toggles word-wrap; wrap off, arrows pan left/right"
     "  p:            previous-container logs (crash loops)"
     "  u:            route URL (OpenShift :routes) - shows https://host/path, copies to clipboard"
     ""
