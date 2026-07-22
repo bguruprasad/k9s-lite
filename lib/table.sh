@@ -54,6 +54,7 @@ table_bottom() {
 logs_measure() {
   local r len
   LOGS_MAXLEN=0
+  (( ${#TABLE_ROWS[@]} )) || return 0   # empty array + set -u would abort
   for r in "${TABLE_ROWS[@]}"; do
     len=${#r}
     (( len > LOGS_MAXLEN )) && LOGS_MAXLEN=$len
@@ -67,6 +68,7 @@ logs_wrap_build() {
   local inner=$(( COLS - 2 )) r seg
   (( inner < 10 )) && inner=10
   LOGS_WRAP_ROWS=()
+  (( ${#TABLE_ROWS[@]} )) || return 0   # empty array + set -u would abort
   for r in "${TABLE_ROWS[@]}"; do
     if (( ${#r} <= inner )); then
       LOGS_WRAP_ROWS+=("$r")
@@ -448,7 +450,7 @@ table_draw() {
         row="${TABLE_ROWS[i]}"
       fi
       # unwrapped logs pan horizontally: draw from byte offset LOGS_HSCROLL
-      if [[ -n $LOGS_VIEW && -z $LOGS_WRAP && LOGS_HSCROLL -gt 0 ]]; then
+      if [[ -n $LOGS_VIEW && -z $LOGS_WRAP ]] && (( LOGS_HSCROLL > 0 )); then
         row=${row:LOGS_HSCROLL}
       fi
       if [[ -n $DETAIL_VIEW ]]; then
