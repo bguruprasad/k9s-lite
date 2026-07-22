@@ -150,4 +150,59 @@ check_sort_marker() {
 }
 check_sort_marker
 
+# Logs wrap + horizontal scroll (LOGS_VIEW). Same rationale as the sort marker:
+# assert the width-math directly, no pty-timing dependency. COLS=22 -> inner=20
+# (above the 10-col floor the renderer enforces); a 50-char line must split into
+# ceil(50/20)=3 wrapped rows. Horizontal scroll must clamp to the widest line
+# minus one (never scroll everything off-screen).
+check_logs_wrap() {
+  local out
+  out=$(
+    /bin/bash -c '
+      source lib/table.sh >/dev/null 2>&1
+      declare -f logs_wrap_build >/dev/null || { echo "__NOFUNC__"; exit 0; }
+      COLS=22                                  # inner = COLS-2 = 20
+      TABLE_ROWS=("$(printf "%050d" 0)")       # one 50-char line
+      LOGS_VIEW=1
+      logs_measure
+      logs_wrap_build
+      printf "maxlen=%s rows=%s" "$LOGS_MAXLEN" "${#LOGS_WRAP_ROWS[@]}"
+    '
+  )
+  case "$out" in
+    "maxlen=50 rows=3") echo "ok:   logs_wrap_build splits a 50-char line into 3 rows at width 20" ;;
+    __NOFUNC__)         echo "FAIL: logs_wrap_build not found in lib/table.sh"; fail=1 ;;
+    *)                  echo "FAIL: logs_wrap_build (got: $out)"; fail=1 ;;
+  esac
+}
+check_logs_wrap
+
+check_logs_hscroll() {
+  local out
+  out=$(
+    /bin/bash -c '
+      source lib/table.sh >/dev/null 2>&1
+      declare -f logs_hscroll >/dev/null || { echo "__NOFUNC__"; exit 0; }
+      COLS=10
+      TABLE_ROWS=("$(printf "%030d" 0)")       # widest line = 30 chars
+      LOGS_VIEW=1; LOGS_WRAP=""; LOGS_HSCROLL=0
+      logs_measure
+      logs_hscroll -8                          # cannot go below 0
+      a=$LOGS_HSCROLL
+      logs_hscroll 999                         # clamps to maxlen-1 = 29
+      b=$LOGS_HSCROLL
+      LOGS_WRAP=1; LOGS_HSCROLL=5
+      logs_hscroll 8                           # no-op while wrapped
+      c=$LOGS_HSCROLL
+      printf "low=%s high=%s wrapped=%s" "$a" "$b" "$c"
+    '
+  )
+  case "$out" in
+    "low=0 high=29 wrapped=5") echo "ok:   logs_hscroll clamps to [0, maxlen-1] and is inert when wrapped" ;;
+    __NOFUNC__)                echo "FAIL: logs_hscroll not found in lib/table.sh"; fail=1 ;;
+    *)                         echo "FAIL: logs_hscroll (got: $out)"; fail=1 ;;
+  esac
+}
+check_logs_hscroll
+
 exit "$fail"

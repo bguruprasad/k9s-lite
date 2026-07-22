@@ -88,7 +88,7 @@ Press `?` inside the app for this list, always up to date.
 | `d` | describe (plain, in pager) |
 | `y` | YAML (pager) |
 | `v` | events for the selected object, oldest→newest |
-| `l` | logs rendered inside the box (tail 500) - `f` toggles live follow, `r` reloads, `Esc` back |
+| `l` | logs rendered inside the box (tail 500) - `f` toggles live follow, `r` reloads, `w` toggles word-wrap, `Esc` back |
 | `p` | previous-container logs (crash loops) |
 | `u` | route URL (OpenShift `:routes`) - shows `https://host/path`, copies to clipboard |
 
@@ -160,7 +160,9 @@ raw ANSI escapes with a full redraw per tick; the event loop is a single
 
 Logs (`l`) render inside the box like the Enter describe view; follow mode is
 polling-based - the refresh tick re-fetches the tail and pins the view to the
-bottom, no background processes. Interactive actions (exec, edit, pagers)
+bottom, no background processes. Long lines are truncated by default; press
+`w` to word-wrap them, or leave wrap off and pan with the left/right arrows.
+Interactive actions (exec, edit, pagers)
 suspend the alt screen, hand the real terminal to the child, and restore raw
 mode after. Pager-based views (describe, yaml, previous logs) leave no trace
 in your shell's scrollback; `s` (exec) and `e` (edit) deliberately run on the
