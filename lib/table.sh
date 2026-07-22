@@ -18,6 +18,17 @@ DETAIL_KV=""       # when also set: colorize "Key:" prefixes cyan (describe outp
                    # log lines must stay uncolored - timestamps contain colons)
 DKEY_SGR=$'\e[36m'
 
+# --- logs wrap / horizontal scroll (LOGS_VIEW only) --------------------------
+# Wrap OFF (default): body slices each raw TABLE_ROWS line at byte offset
+# LOGS_HSCROLL; LEFT/RIGHT pan. Wrap ON: LOGS_WRAP_ROWS holds the raw lines
+# soft-wrapped to the box width (rebuilt on load + resize), and the body draws
+# from it instead; horizontal offset is forced to 0.
+LOGS_WRAP=""       # non-empty when word-wrap is enabled
+LOGS_HSCROLL=0     # byte column the (unwrapped) body starts at
+LOGS_HSTEP=8       # columns LEFT/RIGHT pan per press
+LOGS_MAXLEN=0      # widest raw line, in bytes - clamps LOGS_HSCROLL
+LOGS_WRAP_ROWS=()  # wrap-mode display buffer (raw lines split to box width)
+
 # box-drawing characters (K9L_ASCII=1 for plain +---+ on odd terminals)
 if [[ -n ${K9L_ASCII:-} ]]; then
   BOX_H='-'; BOX_V='|'; BOX_TL='+'; BOX_TR='+'; BOX_BL='+'; BOX_BR='+'
@@ -30,7 +41,71 @@ table_move() {
 }
 
 table_top()    { CURSOR=0; }
-table_bottom() { CURSOR=$(( ${#TABLE_ROWS[@]} - 1 )); }
+table_bottom() {
+  # wrap mode scrolls the (larger) wrapped buffer, so bottom is its last row
+  if [[ -n $LOGS_VIEW && -n $LOGS_WRAP ]]; then
+    CURSOR=$(( ${#LOGS_WRAP_ROWS[@]} - 1 ))
+  else
+    CURSOR=$(( ${#TABLE_ROWS[@]} - 1 ))
+  fi
+}
+
+# logs_measure - widest raw line in bytes (clamps horizontal scroll). No forks.
+logs_measure() {
+  local r len
+  LOGS_MAXLEN=0
+  (( ${#TABLE_ROWS[@]} )) || return 0   # empty array + set -u would abort
+  for r in "${TABLE_ROWS[@]}"; do
+    len=${#r}
+    (( len > LOGS_MAXLEN )) && LOGS_MAXLEN=$len
+  done
+}
+
+# logs_wrap_build - soft-wrap raw TABLE_ROWS to the box width into
+# LOGS_WRAP_ROWS. Byte-based slicing (matches the printf padder). Called on
+# load and resize, never per-frame. A blank raw line stays one blank row.
+logs_wrap_build() {
+  local inner=$(( COLS - 2 )) r seg
+  (( inner < 10 )) && inner=10
+  LOGS_WRAP_ROWS=()
+  (( ${#TABLE_ROWS[@]} )) || return 0   # empty array + set -u would abort
+  for r in "${TABLE_ROWS[@]}"; do
+    if (( ${#r} <= inner )); then
+      LOGS_WRAP_ROWS+=("$r")
+      continue
+    fi
+    while (( ${#r} > inner )); do
+      seg=${r:0:inner}
+      LOGS_WRAP_ROWS+=("$seg")
+      r=${r:inner}
+    done
+    LOGS_WRAP_ROWS+=("$r")
+  done
+}
+
+# logs_hscroll <delta> - pan the unwrapped body horizontally (no-op when wrapped)
+logs_hscroll() {
+  [[ -n $LOGS_WRAP ]] && return 0
+  local inner=$(( COLS - 2 )) max
+  (( inner < 10 )) && inner=10
+  LOGS_HSCROLL=$(( LOGS_HSCROLL + $1 ))
+  (( LOGS_HSCROLL < 0 )) && LOGS_HSCROLL=0
+  # cannot scroll past the widest line (keep at least one column on screen)
+  max=$(( LOGS_MAXLEN - 1 ))
+  (( max < 0 )) && max=0
+  (( LOGS_HSCROLL > max )) && LOGS_HSCROLL=$max
+}
+
+# logs_toggle_wrap - flip wrap mode, rebuild the display buffer, reset offsets
+logs_toggle_wrap() {
+  if [[ -n $LOGS_WRAP ]]; then
+    LOGS_WRAP=""
+  else
+    LOGS_WRAP=1
+    LOGS_HSCROLL=0
+    logs_wrap_build
+  fi
+}
 
 # row_color <row> - set ROW_SGR by status keyword (no subshell)
 row_color() {
@@ -219,6 +294,8 @@ LAYOUT_COLS=0
 table_reflow() {
   LAYOUT_COLS=$COLS
   local inner=$(( COLS - 2 ))
+  # logs wrap buffer is width-dependent - rebuild it on resize before bailing
+  [[ -n $LOGS_VIEW && -n $LOGS_WRAP ]] && logs_wrap_build
   [[ -n $DETAIL_VIEW ]] && return 0    # free-form text, not columns
   [[ -z $TABLE_HEADER ]] && return 0
 
@@ -299,7 +376,12 @@ table_draw() {
   # info block, top border(title), [column header], [msg], bottom border, footer
   local body_h=$(( ROWS - 3 - head_lines - msg_lines - info_n ))
   (( body_h < 1 )) && body_h=1
-  local n=${#TABLE_ROWS[@]}
+  # in wrap mode the logs body draws from the (larger) wrapped buffer
+  local logs_wrapped="" n=${#TABLE_ROWS[@]}
+  if [[ -n $LOGS_VIEW && -n $LOGS_WRAP ]]; then
+    logs_wrapped=1
+    n=${#LOGS_WRAP_ROWS[@]}
+  fi
 
   # clamp cursor, then scroll window to keep cursor visible
   (( CURSOR >= n )) && CURSOR=$(( n > 0 ? n - 1 : 0 ))
@@ -362,7 +444,15 @@ table_draw() {
   local dk dv
   for (( i = SCROLL; i < SCROLL + body_h; i++ )); do
     if (( i < n )); then
-      row="${TABLE_ROWS[i]}"
+      if [[ -n $logs_wrapped ]]; then
+        row="${LOGS_WRAP_ROWS[i]}"
+      else
+        row="${TABLE_ROWS[i]}"
+      fi
+      # unwrapped logs pan horizontally: draw from byte offset LOGS_HSCROLL
+      if [[ -n $LOGS_VIEW && -z $LOGS_WRAP ]] && (( LOGS_HSCROLL > 0 )); then
+        row=${row:LOGS_HSCROLL}
+      fi
       if [[ -n $DETAIL_VIEW ]]; then
         # describe text: cyan "Key:" prefix, value tinted by status words.
         # Pad/truncate BEFORE splitting so escape bytes never affect widths.
