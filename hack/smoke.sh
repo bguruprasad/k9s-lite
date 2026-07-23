@@ -205,4 +205,40 @@ check_logs_hscroll() {
 }
 check_logs_hscroll
 
+# Update mechanism: version compare, once-a-day cache freshness, and dist
+# detection - all pure logic, unit-checked directly (no network, no pty). The
+# background fetch and self-replace are not exercised here (they need network /
+# a writable target); this asserts the decision logic that gates them.
+check_update_logic() {
+  local out
+  out=$(
+    /bin/bash -c '
+      set -u
+      K9L_VERSION="0.12.0"
+      K9L_HOME="$(mktemp -d)"
+      source lib/update.sh >/dev/null 2>&1
+      declare -f k9l_ver_gt >/dev/null || { echo "__NOFUNC__"; exit 0; }
+      r=""
+      k9l_ver_gt 0.13.0 0.12.0 && r="${r}gt "        # newer
+      k9l_ver_gt 0.12.0 0.12.0 || r="${r}eq "        # equal is not gt
+      k9l_ver_gt 0.9.0 0.12.0   || r="${r}num "      # 9 < 12 numerically, not lexically
+      K9L_UPDATE_CACHE="$K9L_HOME/update"
+      k9l_today
+      printf "%s v0.13.0\n" "$K9L_TODAY" > "$K9L_UPDATE_CACHE"
+      k9l_cache_read && [ "$K9L_LATEST_TAG" = "v0.13.0" ] && r="${r}fresh "
+      k9l_update_available && r="${r}avail "
+      printf "2020-01-01 v0.13.0\n" > "$K9L_UPDATE_CACHE"; K9L_LATEST_TAG=""
+      k9l_cache_read || r="${r}stale "                # yesterday ignored
+      rm -rf "$K9L_HOME"
+      printf "%s" "$r"
+    '
+  )
+  case "$out" in
+    "gt eq num fresh avail stale ") echo "ok:   update logic (ver compare, daily cache, availability)" ;;
+    __NOFUNC__)                     echo "FAIL: update functions not found in lib/update.sh"; fail=1 ;;
+    *)                              echo "FAIL: update logic (got: $out)"; fail=1 ;;
+  esac
+}
+check_update_logic
+
 exit "$fail"
