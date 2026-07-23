@@ -62,8 +62,11 @@ k9l_update_disabled() {
   [[ -n ${K9L_NO_UPDATE_CHECK:-} ]]
 }
 
-# k9l_fetcher - echo a command prefix that fetches a URL to stdout, honoring
-# proxies, with a short timeout. Empty when neither curl nor wget is present.
+# k9l_fetcher - memoize a fetch command prefix into K9L_FETCH (curl, else wget),
+# honoring proxies; invoked as `$K9L_FETCH <timeout-secs> <url>`. Empty when
+# neither is present. K9L_FETCH is shared by the daily check and --update, which
+# never run in the same invocation (--update exits in parse_args before the
+# daily check fires) - keep that ordering if you refactor.
 K9L_FETCH=""
 k9l_fetcher() {
   if [[ -n $K9L_FETCH ]]; then return 0; fi
@@ -86,6 +89,12 @@ k9l_cache_read() {
   tag=${line#* }
   k9l_today || return 1
   [[ $date == "$K9L_TODAY" && -n $tag && $tag != "$date" ]] || return 1
+  # Re-validate the tag charset on READ, not just on write: the cache file is
+  # the trust boundary (a synced/shared $HOME, disk corruption, or a file from
+  # another machine can all bypass the write-time guard). A poisoned tag flows
+  # into the "K9l Rev:" header, where an ANSI escape / multibyte char / tab
+  # would break the box-border byte-width math. Reject anything but [0-9v.].
+  [[ $tag == *[!0-9v.]* ]] && return 1
   K9L_LATEST_TAG=$tag
   return 0
 }

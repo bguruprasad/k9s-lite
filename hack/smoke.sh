@@ -229,12 +229,16 @@ check_update_logic() {
       k9l_update_available && r="${r}avail "
       printf "2020-01-01 v0.13.0\n" > "$K9L_UPDATE_CACHE"; K9L_LATEST_TAG=""
       k9l_cache_read || r="${r}stale "                # yesterday ignored
+      # poisoned cache: today-dated but tag carries an ANSI escape -> rejected
+      # on read (the tag would otherwise corrupt the header box-width math)
+      printf "%s \033[31mx\n" "$K9L_TODAY" > "$K9L_UPDATE_CACHE"; K9L_LATEST_TAG=""
+      k9l_cache_read || r="${r}poison "
       rm -rf "$K9L_HOME"
       printf "%s" "$r"
     '
   )
   case "$out" in
-    "gt eq num fresh avail stale ") echo "ok:   update logic (ver compare, daily cache, availability)" ;;
+    "gt eq num fresh avail stale poison ") echo "ok:   update logic (ver compare, daily cache, availability, tag sanitization)" ;;
     __NOFUNC__)                     echo "FAIL: update functions not found in lib/update.sh"; fail=1 ;;
     *)                              echo "FAIL: update logic (got: $out)"; fail=1 ;;
   esac
