@@ -28,7 +28,7 @@ source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
 source "$K9L_ROOT/lib/update.sh"
 
-K9L_VERSION="0.12.0"
+K9L_VERSION="0.13.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
 RUNNING=1
 MODE=table          # table | picker
