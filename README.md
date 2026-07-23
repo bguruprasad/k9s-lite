@@ -118,25 +118,51 @@ Environment variables:
 | `K9L_DEMO` | unset | `1` = built-in demo data, no cluster needed |
 | `K9L_ASCII` | unset | `1` = plain `+---+` borders for terminals without Unicode box drawing |
 | `K9L_HIDE_COLUMNS` | `NOMINATED NODE,READINESS GATES` | comma-separated header names to hide (kubectl `-o wide` extras that are almost always `<none>`); set empty to show everything |
-| `K9L_CONFIG` | `~/.k9s-lite.conf` | path to the config file |
+| `K9L_NO_UPDATE_CHECK` | unset | `1` = disable the daily update check entirely (for air-gapped/policy-restricted sites) |
+| `K9L_CONFIG` | `~/.k9l/config`, else `~/.k9s-lite.conf` | path to the config file |
 
 Both forms take the same flags and variables - the examples work identically
 with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
 
+### Staying up to date
+
+The single-file build can update itself in place:
+
+```sh
+k9l --update        # downloads the latest release and replaces this file
+```
+
+It downloads the newest `k9s-lite.dist.sh`, verifies it (syntax-checks it and
+confirms it is a newer k9s-lite build), then atomically replaces the running
+file. If your proxy blocks the download it prints the browser/PowerShell steps
+instead - it never leaves you with a half-written script. `--update` only works
+on the single-file build; in a repo checkout it tells you to `git pull`.
+
+k9s-lite also does a lightweight **once-a-day** check in the background: on
+launch it may fire a single short, detached request to the GitHub releases API
+(honoring `https_proxy`, with a hard timeout so it can never hang the UI) and
+caches the result in `~/.k9l/update`. When a newer release exists, the header's
+`K9l Rev:` line shows `(vX.Y.Z avail, --update)`. It is silent when offline or
+proxy-blocked. Set `K9L_NO_UPDATE_CHECK=1` (env or `no_update_check=1` in the
+config) to turn the check off completely.
+
 ### Config file
 
-Put your defaults in `~/.k9s-lite.conf` so you don't retype them - plain
+Put your defaults in `~/.k9l/config` so you don't retype them - plain
 `key=value` lines, `#` comments allowed, parsed (never executed as code):
 
 ```ini
-# ~/.k9s-lite.conf
+# ~/.k9l/config
 kubectl=oc          # OpenShift shop
 namespace=my-team   # where I always start
 refresh=5           # corporate VPN is slow
+no_update_check=1   # air-gapped site: never phone home
 ```
 
-Recognized keys: `refresh`, `namespace`, `kubectl`, `ascii`. Precedence:
-CLI flag > environment variable > config file > built-in default.
+Recognized keys: `refresh`, `namespace`, `kubectl`, `ascii`, `no_update_check`.
+Precedence: CLI flag > environment variable > config file > built-in default.
+The config path is `~/.k9l/config` if present, otherwise the legacy
+`~/.k9s-lite.conf` (still honored); override either with `K9L_CONFIG`.
 
 ## Why pure Bash?
 
