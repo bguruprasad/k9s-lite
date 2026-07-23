@@ -6,9 +6,11 @@
 # Usage:
 #   bash k9s-lite.sh [-n|--namespace <ns>]
 #     namespace resolution: --namespace arg > kubeconfig context namespace > "default"
-#   K9L_DEMO=1 bash k9s-lite.sh   # built-in demo data, no cluster needed
-#   K9L_KUBECTL=oc ...            # drive OpenShift's oc instead of kubectl
-#   ~/.k9s-lite.conf              # persisted defaults (refresh/namespace/kubectl/ascii)
+#   bash k9s-lite.sh --update      # self-update the single-file build in place
+#   bash k9s-lite.sh --version     # print version and exit
+#   K9L_DEMO=1 bash k9s-lite.sh    # built-in demo data, no cluster needed
+#   K9L_KUBECTL=oc ...             # drive OpenShift's oc instead of kubectl
+#   ~/.k9l/config                  # persisted defaults (refresh/namespace/kubectl/ascii)
 #
 # Keys: j/k/arrows/wheel move · g/G top/bottom · : command (:po :svc :deploy ...)
 #       a resource browser (all api-resources) · / filter · n namespaces · c contexts
@@ -24,6 +26,7 @@ source "$K9L_ROOT/lib/term.sh"
 source "$K9L_ROOT/lib/table.sh"
 source "$K9L_ROOT/lib/kube.sh"
 source "$K9L_ROOT/lib/actions.sh"
+source "$K9L_ROOT/lib/update.sh"
 
 K9L_VERSION="0.12.0"
 REFRESH_SECS="${K9L_REFRESH:-2}"
@@ -46,6 +49,8 @@ parse_args() {
         ARG_NS=$2; shift 2 ;;
       --namespace=*) ARG_NS=${1#*=}; shift ;;
       -h|--help) usage; exit 0 ;;
+      -V|--version) echo "k9s-lite v$K9L_VERSION"; exit 0 ;;
+      --update) k9l_self_update; exit $? ;;
       *) echo "unknown argument: $1 (try --help)" >&2; exit 2 ;;
     esac
   done
@@ -139,7 +144,11 @@ build_info() {
   add_info_line "Context:" "$CUR_CTX"       "<d>"  "describe"  "<s>"  "shell"   "<:>" "resource"
   add_info_line "Cluster:" "$CUR_CLUSTER"   "<y>"  "yaml"      "<e>"  "edit"    "</>" "filter"
   add_info_line "User:"    "$CUR_USER"      "<v>"  "events"    "<^d>" "delete"  "<n>" "namespace"
-  add_info_line "K9l Rev:" "v$K9L_VERSION"  "<l>"  "logs"      "<r>"  "refresh" "<c>" "context"
+  # daily update check (background) surfaces here as a plain-text nudge; the
+  # value is measured/padded by add_info_line so no width math breaks
+  local rev="v$K9L_VERSION"
+  k9l_update_available && rev="v$K9L_VERSION (${K9L_LATEST_TAG} avail, --update)"
+  add_info_line "K9l Rev:" "$rev"           "<l>"  "logs"      "<r>"  "refresh" "<c>" "context"
   add_info_line "K8s Rev:" "$K8S_VER"       "<p>"  "prev logs" "<a>"  "browse"  "<q>" "quit"
   if (( INFO_SHOW_TAG )); then
     # tagline centered under the logo (wide screens only)
@@ -458,9 +467,14 @@ open_help() {
     "  K9L_DEMO=1         demo data, no cluster needed"
     "  K9L_ASCII=1        plain +--+ borders"
     "  K9L_HIDE_COLUMNS   hidden columns (default: NOMINATED NODE,READINESS GATES)"
+    "  K9L_NO_UPDATE_CHECK=1  disable the daily update check"
     ""
-    "Config file (~/.k9s-lite.conf, or K9L_CONFIG=path):"
-    "  key=value lines: refresh, namespace, kubectl, ascii"
+    "Update (single-file build only):"
+    "  --update           download the latest release and replace this file"
+    "  daily background check nudges you in the K9l Rev: line when behind"
+    ""
+    "Config file (~/.k9l/config, legacy ~/.k9s-lite.conf, or K9L_CONFIG=path):"
+    "  key=value lines: refresh, namespace, kubectl, ascii, no_update_check"
     "  precedence: flag > environment > config file > default"
   )
   CURSOR=0; SCROLL=0
@@ -622,6 +636,10 @@ dispatch() {
 
 main() {
   parse_args "$@"
+  # daily update check: reads today's cached tag (if any) and, at most once a
+  # day, forks a detached fetch to refresh it. Never blocks; --update/--help/
+  # --version above have already exited, so this only runs for a real launch.
+  k9l_update_check_bg
   term_init
   kube_init
   if [[ -n $ARG_NS ]]; then

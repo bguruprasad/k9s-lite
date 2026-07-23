@@ -12,12 +12,19 @@ OUT=dist/k9s-lite.dist.sh
 mkdir -p dist
 
 # lib load order must match the `source` lines in k9s-lite.sh
-LIBS="lib/config.sh lib/term.sh lib/table.sh lib/kube.sh lib/actions.sh"
+LIBS="lib/config.sh lib/term.sh lib/table.sh lib/kube.sh lib/actions.sh lib/update.sh"
 
 {
   # shebang + the header comment block (everything up to the first blank
   # line after "set -u") comes from the main script, unchanged
   sed -n '1,/^set -u$/p' "$SRC"
+  echo
+  # sentinel: marks this file as the single-file build so `--update` knows it's
+  # safe to self-replace (a repo checkout has no sentinel and --update refuses).
+  # The value must match K9L_DIST_SENTINEL in lib/update.sh exactly. It's emitted
+  # as its own comment line here (a bare marker), distinct from the variable
+  # assignment that carries the same string, so the marker is unambiguous.
+  echo "#k9s-lite-dist-build-sentinel"
   echo
 
   for f in $LIBS; do
