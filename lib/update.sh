@@ -78,6 +78,22 @@ k9l_fetcher() {
   [[ -n $K9L_FETCH ]]
 }
 
+# k9l_fetch_latest_tag - query the releases API for the latest tag into
+# K9L_LATEST_TAG (e.g. v0.13.0). Foreground; used by --update for its pre-check
+# and by the background fork. <timeout> seconds is the hard fetch cap. Returns
+# non-zero (and leaves K9L_LATEST_TAG empty) on any failure or a malformed tag.
+k9l_fetch_latest_tag() {
+  local timeout=${1:-5} out tag
+  K9L_LATEST_TAG=""
+  k9l_fetcher || return 1
+  out=$($K9L_FETCH "$timeout" "https://api.github.com/repos/$K9L_REPO/releases/latest" 2>/dev/null) || return 1
+  tag=$(printf '%s\n' "$out" | grep -m1 '"tag_name"')
+  tag=${tag#*: \"}; tag=${tag%%\"*}
+  [[ -n $tag && $tag != *[!0-9v.]* ]] || return 1
+  K9L_LATEST_TAG=$tag
+  return 0
+}
+
 # k9l_cache_read - load today's cached tag into K9L_LATEST_TAG if the cache line
 # is dated today; leaves it empty otherwise. Returns 0 if a fresh tag was loaded.
 k9l_cache_read() {
@@ -106,19 +122,14 @@ k9l_update_check_bg() {
   k9l_update_disabled && return 0
   k9l_cache_read && return 0        # already checked today; K9L_LATEST_TAG set
   k9l_fetcher || return 0           # no curl/wget -> silent no-op
-  local url="https://api.github.com/repos/$K9L_REPO/releases/latest"
   mkdir -p "$K9L_HOME" 2>/dev/null || return 0
-  # Detached subshell: fetch, extract "tag_name": "vX.Y.Z", write cache. Any
-  # failure leaves the cache untouched (stale-not-broken). Redirect everything
-  # so a slow/blocked proxy is invisible to the UI. This is the one daily fork.
+  # Detached subshell: fetch the latest tag and write today's cache. Any failure
+  # leaves the cache untouched (stale-not-broken). Redirect everything so a
+  # slow/blocked proxy is invisible to the UI. This is the one daily fork.
   (
-    local out tag
-    out=$($K9L_FETCH 3 "$url" 2>/dev/null) || exit 0
-    tag=$(printf '%s\n' "$out" | grep -m1 '"tag_name"')
-    tag=${tag#*: \"}; tag=${tag%%\"*}
-    [[ -n $tag && $tag != *[!0-9v.]* ]] || exit 0
+    k9l_fetch_latest_tag 3 || exit 0
     k9l_today || exit 0
-    printf '%s %s\n' "$K9L_TODAY" "$tag" > "$K9L_UPDATE_CACHE" 2>/dev/null
+    printf '%s %s\n' "$K9L_TODAY" "$K9L_LATEST_TAG" > "$K9L_UPDATE_CACHE" 2>/dev/null
   ) >/dev/null 2>&1 &
   return 0
 }
@@ -154,10 +165,29 @@ k9l_self_update() {
   [[ -w $self ]] || { echo "k9s-lite: cannot write $self (permission denied)" >&2; return 1; }
 
   local dl="https://github.com/$K9L_REPO/releases/latest/download/k9s-lite.dist.sh"
-  echo "Downloading the latest k9s-lite.dist.sh ..."
+  echo "Current version: v$K9L_VERSION"
   if ! k9l_fetcher; then
+    echo "No curl or wget available to check for updates." >&2
     k9l_update_manual "$dl"; return 1
   fi
+
+  # Pre-check: ask the releases API for just the latest tag BEFORE downloading
+  # the ~66 KB dist. Cheap, and it means an already-current install (the common
+  # case) does zero large downloads. Always a fresh query - --update is an
+  # explicit "check now", so the daily cache is deliberately not consulted.
+  echo "Checking for updates ..."
+  if ! k9l_fetch_latest_tag 5; then
+    echo "Could not determine the latest version (proxy or network?)." >&2
+    k9l_update_manual "$dl"; return 1
+  fi
+  local latest=${K9L_LATEST_TAG#v}
+  echo "Latest release: v$latest"
+  if [[ $latest == "$K9L_VERSION" ]] || ! k9l_ver_gt "$latest" "$K9L_VERSION"; then
+    echo "Already on the latest version (v$K9L_VERSION)."
+    return 0
+  fi
+
+  echo "Downloading k9s-lite.dist.sh (v$latest) ..."
   local tmp
   tmp=$(mktemp "${TMPDIR:-/tmp}/k9l-update.XXXXXX") || {
     echo "k9s-lite: could not create a temp file" >&2; return 1
@@ -185,6 +215,10 @@ k9l_self_update() {
   if ! grep -q "^$K9L_DIST_SENTINEL\$" "$tmp"; then
     echo "Downloaded file is not a k9s-lite dist build - not replacing." >&2; return 1
   fi
+  # Re-check the DOWNLOADED artifact's own version, not just the API tag from the
+  # pre-check above. Not dead code: the tag and the attached asset can disagree
+  # (a dist stamped with a different K9L_VERSION, or a race between tag creation
+  # and asset upload), so we refuse to replace with something not actually newer.
   if [[ $newver == "$K9L_VERSION" ]]; then
     echo "Already up to date (v$K9L_VERSION)."; return 0
   fi

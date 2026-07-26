@@ -470,7 +470,7 @@ open_help() {
     "  K9L_NO_UPDATE_CHECK=1  disable the daily update check"
     ""
     "Update (single-file build only):"
-    "  --update           download the latest release and replace this file"
+    "  --update           update to the latest release (checks first; no-op if current)"
     "  daily background check nudges you in the K9l Rev: line when behind"
     ""
     "Config file (~/.k9l/config, legacy ~/.k9s-lite.conf, or K9L_CONFIG=path):"
