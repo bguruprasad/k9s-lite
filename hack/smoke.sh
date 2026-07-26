@@ -233,12 +233,22 @@ check_update_logic() {
       # on read (the tag would otherwise corrupt the header box-width math)
       printf "%s \033[31mx\n" "$K9L_TODAY" > "$K9L_UPDATE_CACHE"; K9L_LATEST_TAG=""
       k9l_cache_read || r="${r}poison "
+      # tag pre-check parse (used by --update before it downloads): stub the
+      # fetcher so no network is touched. Valid API body -> tag; garbage -> fail.
+      # The stub is a cat of a body file (no nested quoting to fight -c quoting).
+      body="$K9L_HOME/body"; ff="$K9L_HOME/ff"
+      printf "%s\n" "\"tag_name\": \"v0.14.0\"," > "$body"
+      printf "#!/bin/bash\ncat %s\n" "$body" > "$ff"; chmod +x "$ff"
+      K9L_FETCH="$ff"
+      k9l_fetch_latest_tag 5 && [ "$K9L_LATEST_TAG" = "v0.14.0" ] && r="${r}tag "
+      printf "%s\n" "no tag in here" > "$body"; K9L_LATEST_TAG=""
+      k9l_fetch_latest_tag 5 || r="${r}badtag "
       rm -rf "$K9L_HOME"
       printf "%s" "$r"
     '
   )
   case "$out" in
-    "gt eq num fresh avail stale poison ") echo "ok:   update logic (ver compare, daily cache, availability, tag sanitization)" ;;
+    "gt eq num fresh avail stale poison tag badtag ") echo "ok:   update logic (ver compare, daily cache, availability, tag sanitization, pre-check)" ;;
     __NOFUNC__)                     echo "FAIL: update functions not found in lib/update.sh"; fail=1 ;;
     *)                              echo "FAIL: update logic (got: $out)"; fail=1 ;;
   esac

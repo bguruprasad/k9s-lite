@@ -129,14 +129,17 @@ with `k9s-lite.sh` (repo checkout) and `k9s-lite.dist.sh` (single file).
 The single-file build can update itself in place:
 
 ```sh
-k9l --update        # downloads the latest release and replaces this file
+k9l --update        # update to the latest release, if you're not already on it
 ```
 
-It downloads the newest `k9s-lite.dist.sh`, verifies it (syntax-checks it and
-confirms it is a newer k9s-lite build), then atomically replaces the running
-file. If your proxy blocks the download it prints the browser/PowerShell steps
-instead - it never leaves you with a half-written script. `--update` only works
-on the single-file build; in a repo checkout it tells you to `git pull`.
+It prints your current version, then checks the latest release tag *before*
+downloading anything. If you are already on the latest version it says so and
+stops - no large download. Only when a newer release exists does it fetch the
+new `k9s-lite.dist.sh`, verify it (syntax-checks it and confirms it is a newer
+k9s-lite build), and atomically replace the running file. If your proxy blocks
+the check or download it prints the browser/PowerShell steps instead - it never
+leaves you with a half-written script. `--update` only works on the single-file
+build; in a repo checkout it tells you to `git pull`.
 
 k9s-lite also does a lightweight **once-a-day** check in the background: on
 launch it may fire a single short, detached request to the GitHub releases API
