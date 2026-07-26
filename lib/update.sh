@@ -215,6 +215,10 @@ k9l_self_update() {
   if ! grep -q "^$K9L_DIST_SENTINEL\$" "$tmp"; then
     echo "Downloaded file is not a k9s-lite dist build - not replacing." >&2; return 1
   fi
+  # Re-check the DOWNLOADED artifact's own version, not just the API tag from the
+  # pre-check above. Not dead code: the tag and the attached asset can disagree
+  # (a dist stamped with a different K9L_VERSION, or a race between tag creation
+  # and asset upload), so we refuse to replace with something not actually newer.
   if [[ $newver == "$K9L_VERSION" ]]; then
     echo "Already up to date (v$K9L_VERSION)."; return 0
   fi
