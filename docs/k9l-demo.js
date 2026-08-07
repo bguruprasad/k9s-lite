@@ -202,14 +202,14 @@
     var rows = state.mode === 'table' ? visibleRows(state) : state.detailLines;
     var title = state.mode === 'table'
       ? ' ' + RESOURCES[state.resource].title + '[' + rows.length + '] '
-      : ' ' + esc(state.detailTitle) + ' ';
+      : ' ' + state.detailTitle + ' ';
     var left = Math.floor((inner - title.length) / 2);
     var right = inner - title.length - left;
     lines.push(BOX.tl + rule(left) + '<b>' + esc(title) + '</b>' + rule(right) + BOX.tr);
 
     if (state.mode === 'table') {
       var header = markSort(state.header, state.sortCol, state.sortDesc);
-      lines.push(BOX.v + '<b>' + padRight(' ' + esc(header), inner) + '</b>' + BOX.v);
+      lines.push(BOX.v + '<b>' + esc(padRight(' ' + header, inner)) + '</b>' + BOX.v);
     }
 
     var bodyH = state.mode === 'table' ? 10 : 14;
@@ -217,10 +217,10 @@
       if (i < rows.length) {
         var row = rows[i];
         if (state.mode === 'table' && i === state.cursor) {
-          lines.push(BOX.v + '<span class="row-cursor">' + padRight('>' + esc(row), inner) + '</span>' + BOX.v);
+          lines.push(BOX.v + '<span class="row-cursor">' + esc(padRight('>' + row, inner)) + '</span>' + BOX.v);
         } else {
           var cls = state.mode === 'table' ? rowColor(row) : '';
-          lines.push(BOX.v + '<span class="' + cls + '">' + padRight(' ' + esc(row), inner) + '</span>' + BOX.v);
+          lines.push(BOX.v + '<span class="' + cls + '">' + esc(padRight(' ' + row, inner)) + '</span>' + BOX.v);
         }
       } else {
         lines.push(BOX.v + padRight('', inner) + BOX.v);
@@ -229,9 +229,9 @@
     lines.push(BOX.bl + rule(inner) + BOX.br);
 
     var footer = state.filter
-      ? ' filter: ' + esc(state.filter) + '  Esc:clear-filter'
+      ? ' filter: ' + state.filter + '  Esc:clear-filter'
       : ' ?:help  o/O:sort  a:resources  r:refresh  0:all-ns  Esc:clear-filter  [80x24]';
-    lines.push(padRight(footer, inner + 2));
+    lines.push(esc(padRight(footer, inner + 2)));
     return lines;
   }
 
