@@ -12,7 +12,7 @@
 //
 // State shape:
 // {
-//   ctx: 'demo', cluster: 'demo-cluster', user: 'demo-user',
+//   ctx: 'demo', cluster: 'demo-cluster', user: 'demo-user', k8s: 'demo',
 //   resource: 'po',            // 'po' | 'svc' | 'deploy'
 //   header: string,            // current TABLE_HEADER-equivalent
 //   rows: string[],            // current TABLE_ROWS-equivalent
@@ -119,7 +119,7 @@
 
   function initialState() {
     return {
-      ctx: 'demo', cluster: 'demo-cluster', user: 'demo-user',
+      ctx: 'demo', cluster: 'demo-cluster', user: 'demo-user', k8s: 'demo',
       resource: 'po',
       header: podHeader(),
       rows: podRows(),
@@ -177,7 +177,8 @@
     ['Context:', 'ctx', '<d>', 'describe', '<s>', 'shell', '<:>', 'resource'],
     ['Cluster:', 'cluster', '<y>', 'yaml', '<e>', 'edit', '</>', 'filter'],
     ['User:', 'user', '<v>', 'events', '<^d>', 'delete', '<n>', 'namespace'],
-    ['K9l Rev:', null, '<l>', 'logs', '<r>', 'refresh', '<c>', 'context']
+    ['K9l Rev:', null, '<l>', 'logs', '<r>', 'refresh', '<c>', 'context'],
+    ['K8s Rev:', 'k8s', '<p>', 'prev logs', '<a>', 'browse', '<q>', 'quit']
   ];
 
   // COLS is the single source of truth for the simulated terminal's width.
@@ -187,9 +188,11 @@
   // Mirrors the real tool's layout at a wide COLS: identity block left,
   // ASCII logo centered in the gap, key map flush right (k9s-lite.sh:91-137).
   var COLS = 100;
+  // key padded to 4 + trailing space, action to 9 + trailing space = 15 per
+  // pair, matching add_info_line's printf widths (k9s-lite.sh:108-114)
   var HDR_VALW = 20;
   var HDR_KEYW = 5;
-  var HDR_ACTW = 9;
+  var HDR_ACTW = 10;
   var HDR_LEFTW = 1 + 9 + 1 + HDR_VALW;              // lead + label + space + value
   var HDR_RIGHTW = 3 * (HDR_KEYW + HDR_ACTW);        // 3 key/action pairs
   var HDR_GAPW = COLS - HDR_LEFTW - HDR_RIGHTW;      // logo lives in here
@@ -198,12 +201,14 @@
     var lines = [];
     var logoW = LOGO[0].length;
     // logo centered within the gap, exactly as add_info_line does when the
-    // terminal is wide enough to fit it (mid >= logo_w + 4)
+    // terminal is wide enough to fit it (mid >= logo_w + 4). There are 5
+    // identity lines and 5 logo rows, so one logo row sits beside each -
+    // the same pairing the real tool gets from `line_i < ${#K9L_LOGO[@]}`.
     var logoPad = Math.max(0, Math.floor((HDR_GAPW - logoW) / 2));
     KEYMAP_LINES.forEach(function (spec, idx) {
       var label = spec[0];
       var val = spec[1] === 'ctx' ? state.ctx : spec[1] === 'cluster' ? state.cluster :
-        spec[1] === 'user' ? state.user : 'v0.13.1 (demo)';
+        spec[1] === 'user' ? state.user : spec[1] === 'k8s' ? state.k8s : 'v0.13.1 (demo)';
       var left = '<span class="hdr-lbl">' + esc(padRight(label, 9)) + '</span> ' +
         '<span class="hdr-val">' + esc(padRight(val, HDR_VALW)) + '</span>';
       var right = '';
@@ -211,22 +216,16 @@
         right += '<span class="hdr-key">' + esc(padRight(spec[i], HDR_KEYW)) + '</span>' +
           '<span class="hdr-act">' + esc(padRight(spec[i + 1], HDR_ACTW)) + '</span>';
       }
-      // logo rows 0-3 sit beside the first four identity lines
       var gap = padRight('', logoPad) +
         '<span class="hdr-logo">' + esc(padRight(LOGO[idx], logoW)) + '</span>' +
         padRight('', HDR_GAPW - logoPad - logoW);
       lines.push(' ' + left + gap + right);
     });
-    // 5th line: the logo's last row, with the tagline centered beneath it -
-    // same shape as build_info's INFO_SHOW_TAG path. Padded to COLS so this
-    // line shares the grid's right edge like every other line.
-    var tagPad = Math.max(0, logoPad + Math.floor((logoW - TAG.length) / 2));
-    var last = padRight('', HDR_LEFTW + logoPad) +
-      '<span class="hdr-logo">' + esc(padRight(LOGO[4], logoW)) + '</span>';
-    var tagLine = padRight('', HDR_LEFTW + tagPad) +
-      '<span class="hdr-logo">' + esc(TAG) + '</span>';
-    lines.push(last + padRight('', COLS - HDR_LEFTW - logoPad - logoW));
-    lines.push(tagLine + padRight('', COLS - HDR_LEFTW - tagPad - TAG.length));
+    // tagline centered under the logo on its own line, mirroring build_info's
+    // INFO_SHOW_TAG path. Padded to COLS so it shares the grid's right edge.
+    var tagPad = Math.max(0, HDR_LEFTW + logoPad + Math.floor((logoW - TAG.length) / 2));
+    lines.push(padRight('', tagPad) + '<span class="hdr-tag">' + esc(TAG) + '</span>' +
+      padRight('', COLS - tagPad - TAG.length));
     return lines;
   }
 
