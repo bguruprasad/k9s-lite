@@ -255,8 +255,136 @@
   window.K9L_DEMO.markSort = markSort;
   window.K9L_DEMO.visibleRows = visibleRows;
 
+  function switchResource(state, name) {
+    state.resource = name;
+    state.header = RESOURCES[name].header();
+    state.rows = RESOURCES[name].rows();
+    state.cursor = 0;
+    state.scroll = 0;
+    state.sortCol = 0;
+    state.sortDesc = false;
+    state.filter = '';
+    state.mode = 'table';
+  }
+
+  function crashloopIndex(state) {
+    // Matches by name, not just by 'CrashLoopBackOff' status: podRows() seeds
+    // more than one CrashLoopBackOff row for visual variety, but only
+    // checkout-worker-crashloop is the one Act 2 filters to and inspects.
+    for (var i = 0; i < state.rows.length; i++) {
+      if (state.rows[i].indexOf('checkout-worker-crashloop') !== -1) return i;
+    }
+    return 0;
+  }
+
+  var CRASHLOOP_LOGS = [
+    '2026-08-07T10:14:02Z error connecting to redis://cache:6379: dial tcp: i/o timeout',
+    '2026-08-07T10:14:02Z fatal: could not initialize worker pool, exiting',
+    '2026-08-07T10:14:03Z panic: redis connection required',
+    '2026-08-07T10:14:03Z goroutine 1 [running]:',
+    '2026-08-07T10:14:03Z main.mustConnectRedis(...)',
+    '2026-08-07T10:14:03Z    /app/main.go:41 +0x1c5',
+    '2026-08-07T10:14:03Z exit status 2'
+  ];
+
+  function sortRows(state) {
+    var col = state.sortCol - 1;
+    var starts = columnStarts(state.header);
+    if (col < 0 || col >= starts.length) return;
+    var start = starts[col];
+    var end = col + 1 < starts.length ? starts[col + 1] : state.header.length;
+    var withKey = state.rows.map(function (r) {
+      var cell = r.slice(start, end).trim();
+      var n = parseInt(cell, 10);
+      return { row: r, key: isNaN(n) ? -1 : n };
+    });
+    withKey.sort(function (a, b) { return state.sortDesc ? b.key - a.key : a.key - b.key; });
+    state.rows = withKey.map(function (w) { return w.row; });
+  }
+
+  var SCRIPT = [
+    { delay: 1200, apply: function (s) { switchResource(s, 'po'); } },
+    { delay: 1500, apply: function (s) { switchResource(s, 'svc'); } },
+    { delay: 1500, apply: function (s) { switchResource(s, 'deploy'); } },
+    { delay: 1200, apply: function (s) { switchResource(s, 'po'); } },
+
+    { delay: 900, apply: function (s) { s.filter = 'crashloop'; } },
+    { delay: 1400, apply: function (s) { s.cursor = crashloopIndex(s); } },
+    { delay: 1200, apply: function (s) {
+      s.mode = 'detail';
+      s.detailTitle = 'describe ' + s.rows[s.cursor].split(/\s+/)[0];
+      s.detailLines = [
+        'Name:         ' + s.rows[s.cursor].split(/\s+/)[0],
+        'Namespace:    demo',
+        'Status:       CrashLoopBackOff',
+        'Restart Count: 14',
+        'Last State:   Terminated (Error, exit code 2)',
+        'Reason:       Back-off restarting failed container'
+      ];
+      s.scroll = 0;
+    } },
+    { delay: 2200, apply: function (s) {
+      s.mode = 'logs';
+      s.detailTitle = 'logs ' + s.rows[s.cursor].split(/\s+/)[0];
+      s.detailLines = CRASHLOOP_LOGS;
+      s.scroll = 0;
+    } },
+    { delay: 2600, apply: function (s) {
+      s.mode = 'table';
+      s.filter = '';
+      s.cursor = 0;
+      s.scroll = 0;
+    } },
+
+    { delay: 900, apply: function (s) { s.sortCol = 4; s.sortDesc = true; sortRows(s); } }
+  ];
+
+  var scriptTimer = null;
+  var scriptRunning = false;
+
+  function stopScript() {
+    scriptRunning = false;
+    if (scriptTimer) { clearTimeout(scriptTimer); scriptTimer = null; }
+  }
+
+  function playScript(state, el, onDone) {
+    stopScript();
+    scriptRunning = true;
+    var i = 0;
+    function step() {
+      if (!scriptRunning) return;
+      if (i >= SCRIPT.length) {
+        scriptRunning = false;
+        if (onDone) onDone();
+        return;
+      }
+      var s = SCRIPT[i++];
+      s.apply(state);
+      el.innerHTML = render(state);
+      scriptTimer = setTimeout(step, s.delay);
+    }
+    step();
+  }
+
+  window.K9L_DEMO.SCRIPT = SCRIPT;
+  window.K9L_DEMO.playScript = playScript;
+  window.K9L_DEMO.stopScript = stopScript;
+  window.K9L_DEMO.switchResource = switchResource;
+  window.K9L_DEMO.sortRows = sortRows;
+
   document.addEventListener('DOMContentLoaded', function () {
     var el = document.getElementById('k9l-term');
-    if (el) el.innerHTML = render(window.K9L_DEMO.state);
+    if (!el) return;
+    var reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      SCRIPT.forEach(function (s) { s.apply(window.K9L_DEMO.state); });
+      el.innerHTML = render(window.K9L_DEMO.state);
+    } else {
+      el.innerHTML = render(window.K9L_DEMO.state);
+      playScript(window.K9L_DEMO.state, el, function () {
+        el.setAttribute('data-idle', '1');
+      });
+    }
   });
 })();
