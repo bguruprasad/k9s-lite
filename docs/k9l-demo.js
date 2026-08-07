@@ -196,7 +196,7 @@
     // (k9s-lite.sh build_info, INFO_SHOW_TAG); mirrored here by giving the
     // logo's last line its own row, with TAG alongside it in the same gap.
     lines.push(padRight('', 35) + '  <span class="hdr-logo">' +
-      esc(LOGO[4]) + '  ' + TAG + '</span>');
+      esc(LOGO[4]) + '  ' + esc(TAG) + '</span>');
     return lines;
   }
 

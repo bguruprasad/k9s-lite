@@ -62,6 +62,7 @@ body {
 }
 
 #k9l-term {
+  width: 100%;
   background: #0d0e14;
   color: #eee;
   border: 1px solid var(--border);
