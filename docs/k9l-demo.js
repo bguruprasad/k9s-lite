@@ -155,11 +155,20 @@
     var col = Math.min(sortCol, starts.length) - 1;
     var mark = sortDesc ? 'v' : '^';
     var start = starts[col];
-    var next = col + 1 < starts.length ? starts[col + 1] : header.length;
     // cell text runs from start to the first double-space (or column end)
+    var next = col + 1 < starts.length ? starts[col + 1] : header.length;
     var cellEnd = header.indexOf('  ', start);
     if (cellEnd === -1 || cellEnd > next) cellEnd = next;
     var pos = cellEnd;
+    if (col + 1 >= starts.length) {
+      // last column: no gap to its right. Overwrite trailing padding if any
+      // exists; otherwise append " ^"/" v" after the header text (mirrors
+      // table_mark_sort's j + 1 >= COL_N branch, lib/table.sh:269-276).
+      if (pos + 2 <= header.length) {
+        return header.slice(0, pos) + ' ' + mark + header.slice(pos + 2);
+      }
+      return header + ' ' + mark;
+    }
     if (pos + 2 > next - 1) pos = Math.max(start, next - 3);
     return header.slice(0, pos) + ' ' + mark + header.slice(pos + 2);
   }
@@ -171,32 +180,45 @@
     ['K9l Rev:', null, '<l>', 'logs', '<r>', 'refresh', '<c>', 'context']
   ];
 
+  // Fixed 80-char budget per line, matching the table box's outer width
+  // (inner=78 + 2 border chars) so the header block never overhangs the
+  // table - mirrors add_info_line's fixed-width-left / key-map-right split
+  // (k9s-lite.sh:91-137), simplified for this file's fixed 80x24 grid.
+  // 1 (lead space) + 9 (label) + 1 (space) + 20 (value) + 7 (gap) +
+  // 3 * 14 (5-wide key + 9-wide action) = 80.
+  var HDR_VALW = 20;
+  var HDR_KEYW = 5;
+  var HDR_ACTW = 9;
+  var HDR_GAPW = 80 - (1 + 9 + 1 + HDR_VALW) - 3 * (HDR_KEYW + HDR_ACTW);
+
   function buildHeader(state) {
     var lines = [];
-    KEYMAP_LINES.forEach(function (spec, idx) {
+    // add_info_line only has room to show the logo in the gap when COLS is
+    // wide enough (mid >= logo_w + 4); at this file's fixed 80-column width
+    // the identity block + 3-pair key map already fill the line (same as
+    // the real tool at COLS==80), so no gap is available. The demo drops
+    // the inline logo here to match; the logo is still shown once, on its
+    // own trailing line below, alongside the tagline (see below).
+    KEYMAP_LINES.forEach(function (spec) {
       var label = spec[0];
       var val = spec[1] === 'ctx' ? state.ctx : spec[1] === 'cluster' ? state.cluster :
         spec[1] === 'user' ? state.user : 'v0.13.1 (demo)';
       var left = '<span class="hdr-lbl">' + esc(padRight(label, 9)) + '</span> ' +
-        '<span class="hdr-val">' + esc(padRight(val, 24)) + '</span>';
+        '<span class="hdr-val">' + esc(padRight(val, HDR_VALW)) + '</span>';
       var right = '';
       for (var i = 2; i < spec.length; i += 2) {
-        right += '<span class="hdr-key">' + esc(padRight(spec[i], 5)) + '</span>' +
-          '<span class="hdr-act">' + esc(padRight(spec[i + 1], 10)) + '</span>';
+        right += '<span class="hdr-key">' + esc(padRight(spec[i], HDR_KEYW)) + '</span>' +
+          '<span class="hdr-act">' + esc(padRight(spec[i + 1], HDR_ACTW)) + '</span>';
       }
-      // Logo sits centered in the gap between the identity block and the key
-      // map, one LOGO line per KEYMAP_LINES row - mirrors add_info_line's
-      // centering in k9s-lite.sh, simplified (fixed-width demo, no COLS math).
-      var logo = '  <span class="hdr-logo">' + esc(LOGO[idx]) + '</span>';
-      lines.push(' ' + left + logo + '  ' + right);
+      lines.push(' ' + left + padRight('', HDR_GAPW) + right);
     });
-    // LOGO has 5 lines but KEYMAP_LINES only 4 (real k9s-lite has a 5th
-    // Context/Cluster/User/Rev row - K8s Rev - this demo doesn't simulate).
-    // Real k9s-lite centers TAG on its own trailing line under the logo
-    // (k9s-lite.sh build_info, INFO_SHOW_TAG); mirrored here by giving the
-    // logo's last line its own row, with TAG alongside it in the same gap.
-    lines.push(padRight('', 35) + '  <span class="hdr-logo">' +
-      esc(LOGO[4]) + '  ' + esc(TAG) + '</span>');
+    // 5th line: logo + tagline. Real k9s-lite centers the tagline under the
+    // logo and doesn't force this line to a fixed width either (build_info's
+    // INFO_SHOW_TAG path); left unpadded to 80 here for the same reason -
+    // it's plain text with no trailing border/key-map content to align
+    // against, so a shorter line doesn't create any ragged edge against the
+    // table box below it (which starts its own bordered row at column 0).
+    lines.push('  <span class="hdr-logo">' + esc(LOGO[4]) + '  ' + esc(TAG) + '</span>');
     return lines;
   }
 
@@ -412,18 +434,31 @@
     }
     if (filterBuffer !== null) {
       if (key === 'Enter' || key === 'Escape') {
-        if (key === 'Escape') state.filter = '';
+        if (key === 'Escape') { state.filter = ''; clampCursor(state); }
         filterBuffer = null;
         return true;
       }
-      if (key === 'Backspace') { filterBuffer = filterBuffer.slice(0, -1); state.filter = filterBuffer; return true; }
-      if (key.length === 1) { filterBuffer += key; state.filter = filterBuffer; return true; }
+      if (key === 'Backspace') {
+        filterBuffer = filterBuffer.slice(0, -1);
+        state.filter = filterBuffer;
+        clampCursor(state);
+        return true;
+      }
+      if (key.length === 1) {
+        filterBuffer += key;
+        state.filter = filterBuffer;
+        clampCursor(state);
+        return true;
+      }
       return true;
     }
 
     if (state.mode === 'detail' || state.mode === 'logs') {
       if (key === 'Escape' || key === 'q') { state.mode = 'table'; return true; }
-      if (key === 'j') { state.scroll++; return true; }
+      if (key === 'j') {
+        state.scroll = Math.min(Math.max(0, state.detailLines.length - 1), state.scroll + 1);
+        return true;
+      }
       if (key === 'k') { state.scroll = Math.max(0, state.scroll - 1); return true; }
       return false;
     }
@@ -447,9 +482,11 @@
       case '/':
         filterBuffer = '';
         state.filter = '';
+        clampCursor(state);
         return true;
       case 'Escape':
         state.filter = '';
+        clampCursor(state);
         return true;
       case 'Enter': {
         // Look up the selected row via visibleRows, matching the index space
@@ -497,6 +534,14 @@
       default:
         return false;
     }
+  }
+
+  // clampCursor - re-clamp state.cursor whenever state.filter changes and
+  // may have narrowed (or widened) visibleRows(state); without this a
+  // cursor left pointing past the end of a newly-shorter filtered list
+  // renders no cursor bar and makes Enter/l silently no-op.
+  function clampCursor(state) {
+    state.cursor = Math.max(0, Math.min(state.cursor, visibleRows(state).length - 1));
   }
 
   window.K9L_DEMO.handleKey = handleKey;
