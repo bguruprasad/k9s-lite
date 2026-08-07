@@ -180,26 +180,27 @@
     ['K9l Rev:', null, '<l>', 'logs', '<r>', 'refresh', '<c>', 'context']
   ];
 
-  // Fixed 80-char budget per line, matching the table box's outer width
-  // (inner=78 + 2 border chars) so the header block never overhangs the
-  // table - mirrors add_info_line's fixed-width-left / key-map-right split
-  // (k9s-lite.sh:91-137), simplified for this file's fixed 80x24 grid.
-  // 1 (lead space) + 9 (label) + 1 (space) + 20 (value) + 7 (gap) +
-  // 3 * 14 (5-wide key + 9-wide action) = 80.
+  // COLS is the single source of truth for the simulated terminal's width.
+  // Every line the renderer emits - header rows, the table box, the footer -
+  // is exactly COLS characters, so the whole grid shares one right edge and
+  // #k9l-term's max-content width wraps it snugly (see k9l.css).
+  // Mirrors the real tool's layout at a wide COLS: identity block left,
+  // ASCII logo centered in the gap, key map flush right (k9s-lite.sh:91-137).
+  var COLS = 100;
   var HDR_VALW = 20;
   var HDR_KEYW = 5;
   var HDR_ACTW = 9;
-  var HDR_GAPW = 80 - (1 + 9 + 1 + HDR_VALW) - 3 * (HDR_KEYW + HDR_ACTW);
+  var HDR_LEFTW = 1 + 9 + 1 + HDR_VALW;              // lead + label + space + value
+  var HDR_RIGHTW = 3 * (HDR_KEYW + HDR_ACTW);        // 3 key/action pairs
+  var HDR_GAPW = COLS - HDR_LEFTW - HDR_RIGHTW;      // logo lives in here
 
   function buildHeader(state) {
     var lines = [];
-    // add_info_line only has room to show the logo in the gap when COLS is
-    // wide enough (mid >= logo_w + 4); at this file's fixed 80-column width
-    // the identity block + 3-pair key map already fill the line (same as
-    // the real tool at COLS==80), so no gap is available. The demo drops
-    // the inline logo here to match; the logo is still shown once, on its
-    // own trailing line below, alongside the tagline (see below).
-    KEYMAP_LINES.forEach(function (spec) {
+    var logoW = LOGO[0].length;
+    // logo centered within the gap, exactly as add_info_line does when the
+    // terminal is wide enough to fit it (mid >= logo_w + 4)
+    var logoPad = Math.max(0, Math.floor((HDR_GAPW - logoW) / 2));
+    KEYMAP_LINES.forEach(function (spec, idx) {
       var label = spec[0];
       var val = spec[1] === 'ctx' ? state.ctx : spec[1] === 'cluster' ? state.cluster :
         spec[1] === 'user' ? state.user : 'v0.13.1 (demo)';
@@ -210,15 +211,22 @@
         right += '<span class="hdr-key">' + esc(padRight(spec[i], HDR_KEYW)) + '</span>' +
           '<span class="hdr-act">' + esc(padRight(spec[i + 1], HDR_ACTW)) + '</span>';
       }
-      lines.push(' ' + left + padRight('', HDR_GAPW) + right);
+      // logo rows 0-3 sit beside the first four identity lines
+      var gap = padRight('', logoPad) +
+        '<span class="hdr-logo">' + esc(padRight(LOGO[idx], logoW)) + '</span>' +
+        padRight('', HDR_GAPW - logoPad - logoW);
+      lines.push(' ' + left + gap + right);
     });
-    // 5th line: logo + tagline. Real k9s-lite centers the tagline under the
-    // logo and doesn't force this line to a fixed width either (build_info's
-    // INFO_SHOW_TAG path); left unpadded to 80 here for the same reason -
-    // it's plain text with no trailing border/key-map content to align
-    // against, so a shorter line doesn't create any ragged edge against the
-    // table box below it (which starts its own bordered row at column 0).
-    lines.push('  <span class="hdr-logo">' + esc(LOGO[4]) + '  ' + esc(TAG) + '</span>');
+    // 5th line: the logo's last row, with the tagline centered beneath it -
+    // same shape as build_info's INFO_SHOW_TAG path. Padded to COLS so this
+    // line shares the grid's right edge like every other line.
+    var tagPad = Math.max(0, logoPad + Math.floor((logoW - TAG.length) / 2));
+    var last = padRight('', HDR_LEFTW + logoPad) +
+      '<span class="hdr-logo">' + esc(padRight(LOGO[4], logoW)) + '</span>';
+    var tagLine = padRight('', HDR_LEFTW + tagPad) +
+      '<span class="hdr-logo">' + esc(TAG) + '</span>';
+    lines.push(last + padRight('', COLS - HDR_LEFTW - logoPad - logoW));
+    lines.push(tagLine + padRight('', COLS - HDR_LEFTW - tagPad - TAG.length));
     return lines;
   }
 
@@ -230,7 +238,7 @@
 
   function buildTable(state) {
     var lines = [];
-    var inner = 78;
+    var inner = COLS - 2;   // two border chars, so the box spans exactly COLS
     var rule = function (n) { return new Array(n + 1).join(BOX.h); };
     var rows = state.mode === 'table' ? visibleRows(state) : state.detailLines;
     var title = state.mode === 'table'
@@ -263,7 +271,7 @@
 
     var footer = state.filter
       ? ' filter: ' + state.filter + '  Esc:clear-filter'
-      : ' ?:help  o/O:sort  a:resources  r:refresh  0:all-ns  Esc:clear-filter  [80x24]';
+      : ' ?:help  o/O:sort  a:resources  r:refresh  0:all-ns  Esc:clear-filter  [' + COLS + 'x24]';
     lines.push(esc(padRight(footer, inner + 2)));
     return lines;
   }
