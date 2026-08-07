@@ -546,6 +546,20 @@
 
   window.K9L_DEMO.handleKey = handleKey;
 
+  // pressKeys - drive handleKey with a sequence of keys as if the visitor had
+  // typed them, then re-render once at the end. This is the ONLY way command
+  // buttons touch state; it is not a second way to mutate it - every button
+  // click just replays the same handleKey path a real keydown uses, so a
+  // button and its equivalent keystrokes always leave the demo in the same
+  // state. Intermediate frames are not rendered, matching how a mouse-click
+  // visitor never sees the per-keystroke frames a typed sequence would take.
+  function pressKeys(state, el, keys) {
+    keys.forEach(function (key) { handleKey(state, key); });
+    el.innerHTML = render(state);
+  }
+
+  window.K9L_DEMO.pressKeys = pressKeys;
+
   document.addEventListener('DOMContentLoaded', function () {
     var el = document.getElementById('k9l-term');
     var replayBtn = document.getElementById('k9l-replay');
@@ -598,6 +612,20 @@
         start();
       });
     }
+
+    // Command buttons: each carries a data-keys attribute, a comma-separated
+    // list of the exact keys handleKey(state, key) would receive if the
+    // visitor typed the equivalent shortcut (e.g. ":,p,o,Enter" for the
+    // ":po" button). This is deliberately the same code path a keydown uses -
+    // see pressKeys above - so button clicks and typing can never diverge.
+    document.querySelectorAll('.demo-cmd-buttons button[data-keys]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        stopScript();
+        var keys = btn.getAttribute('data-keys').split(',');
+        pressKeys(state, el, keys);
+        el.focus();
+      });
+    });
 
     start();
 

@@ -79,14 +79,17 @@ body {
   border-color: var(--accent-cyan);
 }
 
-.demo-controls {
+.demo-controls,
+.demo-cmd-buttons {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
-.demo-controls button {
+.demo-controls button,
+.demo-cmd-buttons button {
   font-family: var(--mono);
   background: var(--bg-alt);
   color: var(--fg);
@@ -96,7 +99,13 @@ body {
   cursor: pointer;
 }
 
-.demo-controls button:hover { border-color: var(--accent-cyan); }
+.demo-controls button:hover,
+.demo-cmd-buttons button:hover { border-color: var(--accent-cyan); }
+
+.demo-cmd-buttons button {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+}
 
 .demo-hint {
   color: var(--accent-gray);
