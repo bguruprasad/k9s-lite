@@ -1,0 +1,158 @@
+:root {
+  --bg: #171a26;
+  --bg-alt: #22263a;
+  --fg: #f8f8f2;
+  --border: #2c3040;
+  --accent-cyan: #8be9fd;
+  --accent-yellow: #f1fa8c;
+  --accent-pink: #ff79c6;
+  --accent-green: #50fa7b;
+  --accent-red: #ff5555;
+  --accent-gray: #6272a4;
+  --mono: Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f6f8;
+    --bg-alt: #ffffff;
+    --fg: #171a26;
+    --border: #d7d9e2;
+    --accent-gray: #6272a4;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.hero {
+  text-align: center;
+  padding: 2rem 0 1rem;
+}
+
+.hero img.logo {
+  width: 280px;
+  max-width: 80%;
+  height: auto;
+}
+
+.hero p.tagline {
+  font-size: 1.1rem;
+  color: var(--accent-gray);
+  margin: 0.5rem 0 1rem;
+}
+
+.badges img { margin: 0 0.15rem; }
+
+#demo {
+  margin: 2rem 0;
+}
+
+#k9l-term {
+  background: #0d0e14;
+  color: #eee;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  white-space: pre;
+  outline: none;
+}
+
+#k9l-term:focus {
+  border-color: var(--accent-cyan);
+}
+
+.demo-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.demo-controls button {
+  font-family: var(--mono);
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.demo-controls button:hover { border-color: var(--accent-cyan); }
+
+.demo-hint {
+  color: var(--accent-gray);
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+section.install {
+  margin: 3rem 0;
+}
+
+section.install h2 { margin-bottom: 0.5rem; }
+
+pre.cmd {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  position: relative;
+}
+
+pre.cmd button.copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+details.fallback {
+  margin-top: 1rem;
+  color: var(--accent-gray);
+}
+
+details.fallback summary {
+  cursor: pointer;
+  color: var(--fg);
+}
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--accent-gray);
+  font-size: 0.85rem;
+}
+
+footer a { color: var(--accent-cyan); }
+
+@media (max-width: 600px) {
+  #k9l-term { font-size: 0.62rem; }
+}
