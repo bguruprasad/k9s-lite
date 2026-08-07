@@ -173,7 +173,7 @@
 
   function buildHeader(state) {
     var lines = [];
-    KEYMAP_LINES.forEach(function (spec) {
+    KEYMAP_LINES.forEach(function (spec, idx) {
       var label = spec[0];
       var val = spec[1] === 'ctx' ? state.ctx : spec[1] === 'cluster' ? state.cluster :
         spec[1] === 'user' ? state.user : 'v0.13.1 (demo)';
@@ -184,8 +184,19 @@
         right += '<span class="hdr-key">' + esc(padRight(spec[i], 5)) + '</span>' +
           '<span class="hdr-act">' + esc(padRight(spec[i + 1], 10)) + '</span>';
       }
-      lines.push(' ' + left + '  ' + right);
+      // Logo sits centered in the gap between the identity block and the key
+      // map, one LOGO line per KEYMAP_LINES row - mirrors add_info_line's
+      // centering in k9s-lite.sh, simplified (fixed-width demo, no COLS math).
+      var logo = '  <span class="hdr-logo">' + esc(LOGO[idx]) + '</span>';
+      lines.push(' ' + left + logo + '  ' + right);
     });
+    // LOGO has 5 lines but KEYMAP_LINES only 4 (real k9s-lite has a 5th
+    // Context/Cluster/User/Rev row - K8s Rev - this demo doesn't simulate).
+    // Real k9s-lite centers TAG on its own trailing line under the logo
+    // (k9s-lite.sh build_info, INFO_SHOW_TAG); mirrored here by giving the
+    // logo's last line its own row, with TAG alongside it in the same gap.
+    lines.push(padRight('', 35) + '  <span class="hdr-logo">' +
+      esc(LOGO[4]) + '  ' + TAG + '</span>');
     return lines;
   }
 

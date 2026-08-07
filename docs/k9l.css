@@ -159,9 +159,10 @@ footer a { color: var(--accent-cyan); }
 
 #k9l-term b { font-weight: 700; }
 #k9l-term .hdr-lbl { color: var(--accent-yellow); }
-#k9l-term .hdr-val { color: var(--fg); font-weight: 700; }
+#k9l-term .hdr-val { color: #f8f8f2; font-weight: 700; }
 #k9l-term .hdr-key { color: var(--accent-cyan); }
 #k9l-term .hdr-act { color: var(--accent-gray); }
+#k9l-term .hdr-logo { color: var(--accent-pink); }
 #k9l-term .st-red { color: var(--accent-red); }
 #k9l-term .st-yellow { color: var(--accent-yellow); }
 #k9l-term .st-green { color: var(--accent-green); }
