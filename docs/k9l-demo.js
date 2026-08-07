@@ -544,5 +544,18 @@
     }
 
     start();
+
+    document.querySelectorAll('button.copy').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var targetId = btn.getAttribute('data-copy-target');
+        var target = document.getElementById(targetId);
+        if (!target || !navigator.clipboard) return;
+        navigator.clipboard.writeText(target.textContent).then(function () {
+          var original = btn.textContent;
+          btn.textContent = 'Copied';
+          setTimeout(function () { btn.textContent = original; }, 1500);
+        });
+      });
+    });
   });
 })();
