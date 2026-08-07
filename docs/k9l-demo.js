@@ -383,19 +383,166 @@
   window.K9L_DEMO.switchResource = switchResource;
   window.K9L_DEMO.sortRows = sortRows;
 
+  var cmdBuffer = null; // null = not in command mode; string = buffer since ':'
+  var filterBuffer = null; // null = not filtering; string = buffer since '/'
+
+  function handleKey(state, key) {
+    // command mode: buffer chars until Enter/Esc
+    if (cmdBuffer !== null) {
+      if (key === 'Enter') {
+        var name = cmdBuffer.replace(/^:/, '');
+        if (RESOURCES[name]) switchResource(state, name);
+        cmdBuffer = null;
+        return true;
+      }
+      if (key === 'Escape') { cmdBuffer = null; return true; }
+      if (key.length === 1) { cmdBuffer += key; return true; }
+      return true;
+    }
+    if (filterBuffer !== null) {
+      if (key === 'Enter' || key === 'Escape') {
+        if (key === 'Escape') state.filter = '';
+        filterBuffer = null;
+        return true;
+      }
+      if (key === 'Backspace') { filterBuffer = filterBuffer.slice(0, -1); state.filter = filterBuffer; return true; }
+      if (key.length === 1) { filterBuffer += key; state.filter = filterBuffer; return true; }
+      return true;
+    }
+
+    if (state.mode === 'detail' || state.mode === 'logs') {
+      if (key === 'Escape' || key === 'q') { state.mode = 'table'; return true; }
+      if (key === 'j') { state.scroll++; return true; }
+      if (key === 'k') { state.scroll = Math.max(0, state.scroll - 1); return true; }
+      return false;
+    }
+
+    switch (key) {
+      case 'j': {
+        // Bound against visibleRows, not state.rows: buildTable renders
+        // visibleRows(state) whenever state.filter is set, so state.cursor
+        // must live in that same index space (see module header note on the
+        // index-space rule fixed in crashloopIndex/SCRIPT above).
+        var rows = visibleRows(state);
+        state.cursor = Math.min(rows.length - 1, state.cursor + 1);
+        return true;
+      }
+      case 'k':
+        state.cursor = Math.max(0, state.cursor - 1);
+        return true;
+      case ':':
+        cmdBuffer = ':';
+        return true;
+      case '/':
+        filterBuffer = '';
+        state.filter = '';
+        return true;
+      case 'Escape':
+        state.filter = '';
+        return true;
+      case 'Enter': {
+        // Look up the selected row via visibleRows, matching the index space
+        // that j/k navigation and buildTable's rendering already use when a
+        // filter is active - indexing state.rows here would target the wrong
+        // row while filtered (the exact bug fixed twice already in SCRIPT).
+        var vr = visibleRows(state);
+        var row = vr[state.cursor];
+        if (!row) return true;
+        state.mode = 'detail';
+        state.detailTitle = 'describe ' + row.split(/\s+/)[0];
+        state.detailLines = row.indexOf('CrashLoopBackOff') !== -1 ? [
+          'Name:         ' + row.split(/\s+/)[0],
+          'Namespace:    demo',
+          'Status:       CrashLoopBackOff',
+          'Restart Count: 14',
+          'Last State:   Terminated (Error, exit code 2)',
+          'Reason:       Back-off restarting failed container'
+        ] : [
+          'Name:      ' + row.split(/\s+/)[0],
+          'Namespace: demo',
+          'Status:    ' + (row.split(/\s+/)[2] || 'Running')
+        ];
+        state.scroll = 0;
+        return true;
+      }
+      case 'l': {
+        // Same index-space rule as Enter above: resolve via visibleRows.
+        var vr2 = visibleRows(state);
+        var row2 = vr2[state.cursor];
+        if (!row2) return true;
+        state.mode = 'logs';
+        state.detailTitle = 'logs ' + row2.split(/\s+/)[0];
+        state.detailLines = row2.indexOf('CrashLoopBackOff') !== -1
+          ? CRASHLOOP_LOGS
+          : ['2026-08-07T10:00:00Z info: serving on :8080', '2026-08-07T10:00:01Z info: ready'];
+        state.scroll = 0;
+        return true;
+      }
+      case 'o':
+        state.sortCol = 4;
+        state.sortDesc = !state.sortDesc;
+        sortRows(state);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  window.K9L_DEMO.handleKey = handleKey;
+
   document.addEventListener('DOMContentLoaded', function () {
     var el = document.getElementById('k9l-term');
+    var replayBtn = document.getElementById('k9l-replay');
     if (!el) return;
+    var state = window.K9L_DEMO.state;
     var reduceMotion = window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion) {
-      SCRIPT.forEach(function (s) { s.apply(window.K9L_DEMO.state); });
-      el.innerHTML = render(window.K9L_DEMO.state);
-    } else {
-      el.innerHTML = render(window.K9L_DEMO.state);
-      playScript(window.K9L_DEMO.state, el, function () {
+
+    function start() {
+      el.removeAttribute('data-idle');
+      if (reduceMotion) {
+        SCRIPT.forEach(function (s) { s.apply(state); });
+        el.innerHTML = render(state);
         el.setAttribute('data-idle', '1');
+      } else {
+        el.innerHTML = render(state);
+        playScript(state, el, function () { el.setAttribute('data-idle', '1'); });
+      }
+    }
+
+    // Only capture keys once the visitor has focused the terminal, so the
+    // page never hijacks browser shortcuts (e.g. '/' for find-in-page).
+    el.addEventListener('keydown', function (ev) {
+      if (ev.key.length === 1 || ['Enter', 'Escape', 'Backspace'].indexOf(ev.key) !== -1) {
+        var handled = handleKey(state, ev.key);
+        if (handled) {
+          stopScript();
+          el.innerHTML = render(state);
+          ev.preventDefault();
+        }
+      }
+    });
+
+    if (replayBtn) {
+      replayBtn.addEventListener('click', function () {
+        state.resource = 'po';
+        state.header = RESOURCES.po.header();
+        state.rows = RESOURCES.po.rows();
+        state.cursor = 0;
+        state.scroll = 0;
+        state.sortCol = 0;
+        state.sortDesc = false;
+        state.filter = '';
+        state.mode = 'table';
+        state.detailLines = [];
+        state.detailTitle = '';
+        cmdBuffer = null;
+        filterBuffer = null;
+        el.focus();
+        start();
       });
     }
+
+    start();
   });
 })();
