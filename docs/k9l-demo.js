@@ -271,8 +271,12 @@
     // Matches by name, not just by 'CrashLoopBackOff' status: podRows() seeds
     // more than one CrashLoopBackOff row for visual variety, but only
     // checkout-worker-crashloop is the one Act 2 filters to and inspects.
-    for (var i = 0; i < state.rows.length; i++) {
-      if (state.rows[i].indexOf('checkout-worker-crashloop') !== -1) return i;
+    // Searches visibleRows (not state.rows) when a filter is active, since
+    // buildTable renders visibleRows(state) whenever state.filter is set -
+    // the cursor index must live in whatever index space the renderer uses.
+    var rows = state.filter ? visibleRows(state) : state.rows;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].indexOf('checkout-worker-crashloop') !== -1) return i;
     }
     return 0;
   }
@@ -311,10 +315,14 @@
     { delay: 900, apply: function (s) { s.filter = 'crashloop'; } },
     { delay: 1400, apply: function (s) { s.cursor = crashloopIndex(s); } },
     { delay: 1200, apply: function (s) {
+      // s.filter is still active here, so the row s.cursor points at lives
+      // in visibleRows(s), not s.rows (same index-space rule as
+      // crashloopIndex - buildTable renders visibleRows whenever filtered).
+      var targetName = visibleRows(s)[s.cursor].split(/\s+/)[0];
       s.mode = 'detail';
-      s.detailTitle = 'describe ' + s.rows[s.cursor].split(/\s+/)[0];
+      s.detailTitle = 'describe ' + targetName;
       s.detailLines = [
-        'Name:         ' + s.rows[s.cursor].split(/\s+/)[0],
+        'Name:         ' + targetName,
         'Namespace:    demo',
         'Status:       CrashLoopBackOff',
         'Restart Count: 14',
@@ -324,8 +332,11 @@
       s.scroll = 0;
     } },
     { delay: 2200, apply: function (s) {
+      // Same index-space note as the describe step above: s.filter is still
+      // set, so resolve the row via visibleRows(s), not s.rows.
+      var targetName = visibleRows(s)[s.cursor].split(/\s+/)[0];
       s.mode = 'logs';
-      s.detailTitle = 'logs ' + s.rows[s.cursor].split(/\s+/)[0];
+      s.detailTitle = 'logs ' + targetName;
       s.detailLines = CRASHLOOP_LOGS;
       s.scroll = 0;
     } },
