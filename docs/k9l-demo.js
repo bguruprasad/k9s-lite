@@ -53,8 +53,13 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // Column widths sum to the table box's interior (COLS - 2) so rows fill it
+  // edge to edge, the way kubectl's tabwriter fills a real terminal.
+  // 40 + 1 + 9 + 1 + 20 + 1 + 12 + 1 + 12 = 97, + 1 lead space = 98 = COLS - 2.
   function podHeader() {
-    return 'NAME                            READY   STATUS             RESTARTS   AGE';
+    return padRight('NAME', 40) + ' ' + padRight('READY', 9) + ' ' +
+      padRight('STATUS', 20) + ' ' + padRight('RESTARTS', 12) + ' ' +
+      padRight('AGE', 12);
   }
 
   function podRows() {
@@ -71,42 +76,56 @@
         age = '38m';
       }
       rows.push(
-        padRight(name, 31) + ' ' +
-        padRight('1/1', 7) + ' ' +
-        padRight(status, 18) + ' ' +
-        padRight(String(restarts), 10) + ' ' +
-        age
+        padRight(name, 40) + ' ' +
+        padRight('1/1', 9) + ' ' +
+        padRight(status, 20) + ' ' +
+        padRight(String(restarts), 12) + ' ' +
+        padRight(age, 12)
       );
     }
     return rows;
   }
 
+  // 24 + 1 + 12 + 1 + 18 + 1 + 15 + 1 + 14 + 1 + 10 = 98
   function svcHeader() {
-    return 'NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)     AGE';
+    return padRight('NAME', 24) + ' ' + padRight('TYPE', 12) + ' ' +
+      padRight('CLUSTER-IP', 18) + ' ' + padRight('EXTERNAL-IP', 15) + ' ' +
+      padRight('PORT(S)', 14) + ' ' + padRight('AGE', 10);
   }
 
   function svcRows() {
+    var row = function (name, ip, ports, age) {
+      return padRight(name, 24) + ' ' + padRight('ClusterIP', 12) + ' ' +
+        padRight(ip, 18) + ' ' + padRight('<none>', 15) + ' ' +
+        padRight(ports, 14) + ' ' + padRight(age, 10);
+    };
     return [
-      padRight('checkout', 16) + ' ' + padRight('ClusterIP', 11) + ' ' + padRight('10.96.12.4', 15) + ' ' + padRight('<none>', 13) + ' ' + padRight('80/TCP', 11) + '2d',
-      padRight('demo-app', 16) + ' ' + padRight('ClusterIP', 11) + ' ' + padRight('10.96.8.190', 15) + ' ' + padRight('<none>', 13) + ' ' + padRight('8080/TCP', 11) + '5d'
+      row('checkout', '10.96.12.4', '80/TCP', '2d'),
+      row('demo-app', '10.96.8.190', '8080/TCP', '5d')
     ];
   }
 
+  // 34 + 1 + 10 + 1 + 16 + 1 + 15 + 1 + 19 = 98
   function deployHeader() {
-    return 'NAME             READY   UP-TO-DATE   AVAILABLE   AGE';
+    return padRight('NAME', 34) + ' ' + padRight('READY', 10) + ' ' +
+      padRight('UP-TO-DATE', 16) + ' ' + padRight('AVAILABLE', 15) + ' ' +
+      padRight('AGE', 19);
   }
 
   function deployRows() {
-    return [
-      padRight('checkout-worker', 16) + ' ' + padRight('1/1', 7) + ' ' + padRight('1', 12) + ' ' + padRight('1', 11) + '2d',
-      padRight('demo-app', 16) + ' ' + padRight('1/1', 7) + ' ' + padRight('1', 12) + ' ' + padRight('1', 11) + '5d'
-    ];
+    var row = function (name, age) {
+      return padRight(name, 34) + ' ' + padRight('1/1', 10) + ' ' +
+        padRight('1', 16) + ' ' + padRight('1', 15) + ' ' + padRight(age, 19);
+    };
+    return [row('checkout-worker', '2d'), row('demo-app', '5d')];
   }
 
   var RESOURCES = {
-    po: { header: podHeader, rows: podRows, title: 'po(demo)' },
-    svc: { header: svcHeader, rows: svcRows, title: 'svc(demo)' },
-    deploy: { header: deployHeader, rows: deployRows, title: 'deploy(demo)' }
+    // titles use the full resource names the real tool starts with
+    // (lib/kube.sh:7 sets RESOURCE="pods"), not the :po/:svc shortnames
+    po: { header: podHeader, rows: podRows, title: 'pods(demo)' },
+    svc: { header: svcHeader, rows: svcRows, title: 'services(demo)' },
+    deploy: { header: deployHeader, rows: deployRows, title: 'deployments(demo)' }
   };
 
   function rowColor(row) {
