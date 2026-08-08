@@ -65,17 +65,27 @@ HTML
 }
 
 # --- README section extractor ------------------------------------------------
-# Prints the body of the section whose heading matches $1 exactly, stopping at
-# the next heading of the same or higher level. Level is derived from $1's
-# leading #s, so "## Keys" stops at the next ##/# but keeps nested ###s.
+# section <heading>          body including nested subsections
+# section <heading> own      body only, stopping at the first nested subsection
+#
+# "own" matters where a page wants a section's prose but places that section's
+# subsections elsewhere: "## Options" holds the env-var table AND the nested
+# "### Staying up to date" / "### Config file", which belong on other pages.
+# Without it those subsections render twice, on two different pages.
 section() {
-  awk -v want="$1" '
+  awk -v want="$1" -v mode="${2:-all}" '
     function level(s,   n) { n = 0; while (substr(s, n + 1, 1) == "#") n++; return n }
-    BEGIN { wl = level(want); on = 0 }
+    BEGIN { wl = level(want); on = 0; fence = 0 }
     {
       if ($0 == want)          { on = 1; next }
-      if (on && /^#+ /) {
-        if (level($0) <= wl)   { on = 0 }
+      # Track fenced blocks: a "#" line inside one is code (the ini sample
+      # opens with "# ~/.k9l/config"), not a heading. Without this the section
+      # ends mid-block and its closing fence is lost, so every later section
+      # renders inside a runaway <pre>.
+      if (/^[ \t]*```/)        { fence = !fence }
+      else if (on && !fence && /^#+ /) {
+        if (level($0) <= wl)             { on = 0 }
+        else if (mode == "own")          { on = 0 }
       }
       if (on) print
     }
@@ -208,9 +218,17 @@ render() {
 }
 
 # --- pages -------------------------------------------------------------------
+# Each README subsection lands on exactly one page. "## Quick start" and
+# "## Options" both nest subsections that belong elsewhere, so they are pulled
+# with "own" and the subsections are placed explicitly, with their heading
+# re-emitted (section() strips the heading it matched).
 {
   page_open "Installation - k9s-lite" "Installation" install
-  { section "## Quick start"; section "### Staying up to date"; } | render
+  {
+    section "## Quick start" own
+    echo "### Requirements";       section "### Requirements"
+    echo "### Staying up to date"; section "### Staying up to date"
+  } | render
   page_close
 } > "$OUT/install.html"
 
@@ -222,7 +240,15 @@ render() {
 
 {
   page_open "Features - k9s-lite" "Features" features
-  { section "## Options"; section "## Why pure Bash?"; section "## How it works"; } | render
+  {
+    echo "### Options and environment variables"
+    section "## Options" own
+    echo "### Config file"; section "### Config file"
+    echo "### Why pure Bash?"; section "## Why pure Bash?"
+    echo "### How it works";   section "## How it works" own
+    echo "### Windows / Git Bash specifics"
+    section "### Windows / Git Bash specifics"
+  } | render
   page_close
 } > "$OUT/features.html"
 
