@@ -10,6 +10,28 @@
   --accent-red: #ff5555;
   --accent-gray: #6272a4;
   --mono: Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* ANSI palette for the simulated terminal only. These mirror the SGR codes
+     the real tool emits, NOT the page's brand accents - the terminal should
+     look like a terminal. Values are the xterm defaults for each code.
+       C_LBL  \e[33m   standard yellow (mustard, not bright yellow)
+       C_VAL  \e[1;97m bold bright white
+       C_KEY  \e[94m   bright blue
+       C_ACT  \e[90m   bright black (gray)
+     Row status colors (lib/table.sh:111-119) use the STANDARD tier, not the
+     bright one: \e[31m red, \e[32m green, \e[33m yellow (same as C_LBL),
+     \e[90m gray. See k9s-lite.sh:72-76
+
+     Values follow a modern terminal's standard tier rather than xterm's
+     1990s defaults - xterm's #cd0000 / #00cd00 are too dim to read on this
+     background, and no terminal anyone actually runs k9s-lite in still
+     uses them. The hues match; the luminance is what a real user sees. */
+  --ansi-yellow: #b58900;
+  --ansi-white: #ffffff;
+  --ansi-blue: #6a6aff;
+  --ansi-gray: #8a8a8a;
+  --ansi-red: #e05561;
+  --ansi-green: #4db56a;
 }
 
 @media (prefers-color-scheme: light) {
@@ -180,17 +202,19 @@ footer a { color: var(--accent-cyan); }
   #k9l-term { font-size: 0.62rem; }
 }
 
+/* Terminal content mirrors the real tool's SGR codes (k9s-lite.sh:72-76,
+   lib/table.sh:111-119), so it uses the --ansi-* palette, not the page's
+   brand accents. The logo takes C_LBL and the tagline C_ACT, per
+   add_info_line and build_info (k9s-lite.sh:126,159). */
 #k9l-term b { font-weight: 700; }
-#k9l-term .hdr-lbl { color: var(--accent-yellow); }
-#k9l-term .hdr-val { color: #f8f8f2; font-weight: 700; }
-#k9l-term .hdr-key { color: var(--accent-cyan); }
-#k9l-term .hdr-act { color: var(--accent-gray); }
-/* logo uses C_LBL (yellow) and the tagline C_ACT (gray), matching
-   add_info_line and build_info in k9s-lite.sh:126,159 */
-#k9l-term .hdr-logo { color: var(--accent-yellow); }
-#k9l-term .hdr-tag { color: var(--accent-gray); }
-#k9l-term .st-red { color: var(--accent-red); }
-#k9l-term .st-yellow { color: var(--accent-yellow); }
-#k9l-term .st-green { color: var(--accent-green); }
-#k9l-term .st-gray { color: var(--accent-gray); }
+#k9l-term .hdr-lbl { color: var(--ansi-yellow); }
+#k9l-term .hdr-val { color: var(--ansi-white); font-weight: 700; }
+#k9l-term .hdr-key { color: var(--ansi-blue); }
+#k9l-term .hdr-act { color: var(--ansi-gray); }
+#k9l-term .hdr-logo { color: var(--ansi-yellow); }
+#k9l-term .hdr-tag { color: var(--ansi-gray); }
+#k9l-term .st-red { color: var(--ansi-red); }
+#k9l-term .st-yellow { color: var(--ansi-yellow); }
+#k9l-term .st-green { color: var(--ansi-green); }
+#k9l-term .st-gray { color: var(--ansi-gray); }
 #k9l-term .row-cursor { background: #f8f8f2; color: #171a26; }
