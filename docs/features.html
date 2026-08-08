@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Features - k9s-lite</title>
+<link rel="stylesheet" href="k9l.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="docnav">
+  <a class="brand" href="./">k9s-lite</a>
+  <a href="install.html">Installation</a>
+  <a href="commands.html">Commands</a>
+  <a href="features.html" class="active">Features</a>
+  <a href="https://github.com/bguruprasad/k9s-lite">GitHub</a>
+</nav>
+<main class="doc">
+<h1>Features</h1>
+<p>
+One flag: <code>-n &lt;ns&gt;</code> / <code>--namespace &lt;ns&gt;</code>. The starting namespace resolves as:
+flag → <code>K9L_NAMESPACE</code> (env or config file) → namespace set on your kubeconfig
+context → <code>default</code>. The view stays locked to that one namespace unless you
+explicitly toggle <code>0</code> - by design, since many users only have RBAC access to
+specific namespaces.
+</p>
+<p>
+Environment variables:
+</p>
+<div class="tablewrap"><table><thead><tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+</tr></thead><tbody>
+<tr>
+<td><code>K9L_KUBECTL</code></td>
+<td><code>kubectl</code></td>
+<td>CLI to drive - set <code>oc</code> for OpenShift</td>
+</tr>
+<tr>
+<td><code>K9L_REFRESH</code></td>
+<td><code>2</code></td>
+<td>auto-refresh interval in seconds (raise it on slow VPNs)</td>
+</tr>
+<tr>
+<td><code>K9L_NAMESPACE</code></td>
+<td>unset</td>
+<td>starting namespace (same as <code>-n</code>, lower precedence)</td>
+</tr>
+<tr>
+<td><code>K9L_DEMO</code></td>
+<td>unset</td>
+<td><code>1</code> = built-in demo data, no cluster needed</td>
+</tr>
+<tr>
+<td><code>K9L_ASCII</code></td>
+<td>unset</td>
+<td><code>1</code> = plain <code>+---+</code> borders for terminals without Unicode box drawing</td>
+</tr>
+<tr>
+<td><code>K9L_HIDE_COLUMNS</code></td>
+<td><code>NOMINATED NODE,READINESS GATES</code></td>
+<td>comma-separated header names to hide (kubectl <code>-o wide</code> extras that are almost always <code>&lt;none&gt;</code>); set empty to show everything</td>
+</tr>
+<tr>
+<td><code>K9L_NO_UPDATE_CHECK</code></td>
+<td>unset</td>
+<td><code>1</code> = disable the daily update check entirely (for air-gapped/policy-restricted sites)</td>
+</tr>
+<tr>
+<td><code>K9L_CONFIG</code></td>
+<td><code>~/.k9l/config</code>, else <code>~/.k9s-lite.conf</code></td>
+<td>path to the config file</td>
+</tr>
+</tbody></table></div>
+<p>
+Both forms take the same flags and variables - the examples work identically
+with <code>k9s-lite.sh</code> (repo checkout) and <code>k9s-lite.dist.sh</code> (single file).
+</p>
+<h2>Staying up to date</h2>
+<p>
+The single-file build can update itself in place:
+</p>
+<pre><code>
+k9l --update        # update to the latest release, if you're not already on it
+</code></pre>
+<p>
+It prints your current version, then checks the latest release tag *before*
+downloading anything. If you are already on the latest version it says so and
+stops - no large download. Only when a newer release exists does it fetch the
+new <code>k9s-lite.dist.sh</code>, verify it (syntax-checks it and confirms it is a newer
+k9s-lite build), and atomically replace the running file. If your proxy blocks
+the check or download it prints the browser/PowerShell steps instead - it never
+leaves you with a half-written script. <code>--update</code> only works on the single-file
+build; in a repo checkout it tells you to <code>git pull</code>.
+</p>
+<p>
+k9s-lite also does a lightweight <strong>once-a-day</strong> check in the background: on
+launch it may fire a single short, detached request to the GitHub releases API
+(honoring <code>https_proxy</code>, with a hard timeout so it can never hang the UI) and
+caches the result in <code>~/.k9l/update</code>. When a newer release exists, the header's
+<code>K9l Rev:</code> line shows <code>(vX.Y.Z avail, --update)</code>. It is silent when offline or
+proxy-blocked. Set <code>K9L_NO_UPDATE_CHECK=1</code> (env or <code>no_update_check=1</code> in the
+config) to turn the check off completely.
+</p>
+<h2>Config file</h2>
+<p>
+Put your defaults in <code>~/.k9l/config</code> so you don't retype them - plain
+<code>key=value</code> lines, <code>#</code> comments allowed, parsed (never executed as code):
+</p>
+<pre><code>
+
+- **Zero dependencies** beyond `bash`, `kubectl`, and the coreutils that ship
+with Git Bash / any Linux / macOS. kubectl does all parsing and auth -
+including corporate SSO/OIDC setups that are painful to reimplement.
+- **RBAC-friendly**: designed for users who can only see specific namespaces.
+Nothing requires cluster-wide permissions; when listing namespaces is
+Forbidden, you type the namespace name instead.
+- **OpenShift-aware**: with `K9L_KUBECTL=oc`, `:routes` works via API
+discovery, `u` on a route row gives you its full URL (TLS-aware, copied
+to your clipboard), and the namespace picker uses RBAC-filtered `projects`.
+
+
+kubectl is the parser: lists are `kubectl get -o wide`, discovery is implicit
+(any resource kind kubectl knows works in `:` command mode - CRDs and OpenShift
+routes included), and events are sorted server-side with `--sort-by`. The UI is
+raw ANSI escapes with a full redraw per tick; the event loop is a single
+`read -t &lt;refresh&gt;` - the timeout doubles as the polling timer.
+
+Logs (`l`) render inside the box like the Enter describe view; follow mode is
+polling-based - the refresh tick re-fetches the tail and pins the view to the
+bottom, no background processes. Long lines are truncated by default; press
+`w` to word-wrap them, or leave wrap off and pan with the left/right arrows.
+Interactive actions (exec, edit, pagers)
+suspend the alt screen, hand the real terminal to the child, and restore raw
+mode after. Pager-based views (describe, yaml, previous logs) leave no trace
+in your shell's scrollback; `s` (exec) and `e` (edit) deliberately run on the
+normal screen so your session transcript survives.
+
+The layout is responsive: on wide terminals table columns stretch to fill the
+screen, the key map right-aligns to the edge, and the ASCII logo appears in the
+header; on narrow screens everything collapses gracefully. Colors follow k9s.
+
+### Windows / Git Bash specifics
+
+- Interactive kubectl (`exec -it`, `edit`) is wrapped with `winpty`
+automatically under mintty.
+- All kubectl output is stripped of `\r`; the repo enforces LF endings.
+- Terminal size is polled every tick (mintty doesn't deliver SIGWINCH to bash).
+- No subshells in the render loop - process forks are expensive under Git Bash.
+
+</code></pre>
+</main>
+<footer>
+  <p>Generated from README.md - do not edit these pages by hand.</p>
+  <p>
+    <a href="https://github.com/bguruprasad/k9s-lite">README</a> &middot;
+    <a href="https://github.com/bguruprasad/k9s-lite/releases">Releases</a> &middot;
+    <a href="https://github.com/bguruprasad/k9s-lite/blob/main/LICENSE">MIT License</a>
+  </p>
+</footer>
+</div>
+</body>
+</html>
