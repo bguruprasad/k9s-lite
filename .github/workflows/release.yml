@@ -17,7 +17,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Guard against the classic footgun: tagging v0.12.0 while the source
       # still says K9L_VERSION="0.11.0". The version users see must match the tag.
@@ -61,7 +61,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git fetch origin main
+          # Branch from main (the PR's base), but take the doc sources from the
+          # tagged commit - a tag can be made from a commit not yet on main, and
+          # regenerating from main's README would then pin content the release
+          # does not contain. Checkout is a no-op when the tag is already on main.
           git checkout -B "chore/pin-${GITHUB_REF_NAME}" origin/main
+          git checkout "${GITHUB_REF_NAME}" -- README.md docs/ hack/build-docs.sh
           # versioned release URLs: README + the landing page's install block
           sed -i -E "s#(releases/download/)v[0-9]+\.[0-9]+\.[0-9]+(/k9s-lite\.dist\.sh)#\1${GITHUB_REF_NAME}\2#g" \
             README.md docs/index.html
