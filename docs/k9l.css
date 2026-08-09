@@ -10,6 +10,9 @@
   --accent-red: #ff5555;
   --accent-gray: #6272a4;
   --mono: Menlo, Consolas, "Liberation Mono", monospace;
+  /* rendered width of the terminal's 100-column grid at its font size; the
+     demo's control rows use it so they share the box's edges */
+  --term-w: 824px;
 
   /* ANSI palette for the simulated terminal only. These mirror the SGR codes
      the real tool emits, NOT the page's brand accents - the terminal should
@@ -62,7 +65,7 @@ body {
 
 .hero {
   text-align: center;
-  padding: 2rem 0 1rem;
+  padding: 2rem 0 0;
 }
 
 .hero img.logo {
@@ -80,7 +83,7 @@ body {
 .badges img { margin: 0 0.15rem; }
 
 #demo {
-  margin: 2rem 0;
+  margin: 1.25rem 0 2rem;
 }
 
 #k9l-term {
@@ -106,11 +109,20 @@ body {
 .demo-cmd-buttons {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  /* left-aligned so a wrapped second row continues under the first rather
+     than floating to the right edge. max-content on a wrapping flex box
+     resolves to the full unwrapped row, which is wider than the terminal -
+     fit-content caps it at the available width so the block lines up with
+     the box above it. */
+  justify-content: flex-start;
   gap: 0.5rem;
-  margin: 0.5rem auto 0;
-  width: max-content;
+  /* Cap the row at the terminal box's width so it wraps inside the box's
+     edges rather than spanning the page. The terminal is 100 columns at
+     0.82rem in the same monospace face, which lands at ~824px; --term-w
+     keeps that number in one place. */
+  width: var(--term-w);
   max-width: 100%;
+  margin: 0.5rem auto 0;
 }
 
 .demo-controls {
