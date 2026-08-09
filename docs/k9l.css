@@ -328,3 +328,39 @@ footer a { color: var(--accent-cyan); }
 }
 
 .herolinks a:hover { text-decoration: underline; }
+
+/* --- feature list (landing page pitch, lifted onto features.html) --------- */
+
+section.features { margin: 3.5rem 0; }
+
+.featurelist {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.5rem 2rem;
+}
+
+.featurelist li { margin: 0; }
+
+.featurelist h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.98rem;
+  color: var(--accent-cyan);
+}
+
+.featurelist p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--accent-gray);
+  line-height: 1.55;
+}
+
+.featurelist code {
+  color: var(--fg);
+  font-size: 0.9em;
+}
+
+/* on the docs page the list sits above the reference sections */
+.doc .featurelist { margin-bottom: 2.5rem; }

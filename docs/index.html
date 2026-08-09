@@ -47,6 +47,72 @@
     <p class="demo-hint">Click a button above, or click the terminal and try <kbd>j</kbd>/<kbd>k</kbd>, <kbd>/</kbd> to filter, <kbd>o</kbd> to sort, or <kbd>:svc</kbd> to switch resources.</p>
   </section>
 
+  <!-- FEATURES:START - hack/build-docs.sh lifts this block into features.html.
+       Edit it here only; the docs page is generated. -->
+  <section class="features">
+    <h2>Features</h2>
+    <ul class="featurelist">
+      <li>
+        <h3>Nothing To Install</h3>
+        <p>One Bash script and the <code>kubectl</code> you already have. No Go
+          binary, no package manager, no admin rights - copy the file onto a
+          jump host and run it.</p>
+      </li>
+      <li>
+        <h3>Works Where You Are Stuck</h3>
+        <p>Built for locked-down corporate machines: Git Bash on Windows,
+          bastion hosts, minimal containers. bash 3.2 and up, including the
+          system bash macOS still ships.</p>
+      </li>
+      <li>
+        <h3>Standard or CRD?</h3>
+        <p>Any kind <code>kubectl</code> knows works in <code>:</code> command
+          mode - pods, services, statefulsets, your own CRDs, OpenShift routes.
+          Discovery is implicit, so nothing needs teaching about your cluster.</p>
+      </li>
+      <li>
+        <h3>RBAC-Friendly By Design</h3>
+        <p>Nothing requires cluster-wide permissions. When listing namespaces is
+          Forbidden you simply type the one you can see, and the view stays
+          locked there until you say otherwise.</p>
+      </li>
+      <li>
+        <h3>OpenShift-Aware</h3>
+        <p>Set <code>K9L_KUBECTL=oc</code> and <code>:routes</code> works,
+          <code>u</code> gives you a route's full TLS-aware URL on your
+          clipboard, and the namespace picker uses RBAC-filtered projects.</p>
+      </li>
+      <li>
+        <h3>Logs Without Leaving</h3>
+        <p>Press <code>l</code> for logs inside the box, <code>f</code> to
+          follow live, <code>w</code> to word-wrap long lines, or pan sideways
+          with the arrows. Follow mode polls on the refresh tick, so there are
+          no background processes to leak.</p>
+      </li>
+      <li>
+        <h3>Spot Trouble Fast</h3>
+        <p>Status colors follow k9s, so crashloops and errors are red on sight.
+          Sort by restart count with <code>o</code>, filter with <code>/</code>,
+          and jump straight into <code>describe</code>, YAML, or events.</p>
+      </li>
+      <li>
+        <h3>Power Users Welcome</h3>
+        <p>Shell into a pod with <code>s</code>, <code>kubectl edit</code> with
+          <code>e</code>, delete with confirmation, browse every kind the
+          cluster supports with <code>a</code>. Interactive commands hand over
+          the real terminal, then restore your view.</p>
+      </li>
+      <li>
+        <h3>Updates Itself</h3>
+        <p><code>k9l --update</code> checks the latest release, verifies the
+          download, and replaces itself atomically. A once-a-day background
+          check nudges you when a release lands - and turns off completely for
+          air-gapped sites.</p>
+      </li>
+    </ul>
+  </section>
+  <!-- FEATURES:END -->
+
   <section class="install">
     <h2>Quick start</h2>
     <p>Grab the single-file build from the

@@ -217,6 +217,21 @@ render() {
   '
 }
 
+# --- landing-page feature list -----------------------------------------------
+# The benefit-led feature list lives in docs/index.html (it is the landing
+# page's pitch) and is lifted verbatim onto the features page, so the wording
+# has one home. Prints the <ul class="featurelist"> block between the
+# FEATURES:START/END markers, without the section heading around it.
+featurelist() {
+  awk '
+    /FEATURES:START/ { on = 1; next }
+    /FEATURES:END/   { on = 0 }
+    on && /<ul class="featurelist">/ { grab = 1 }
+    grab { print }
+    on && /<\/ul>/ { grab = 0 }
+  ' "$OUT/index.html"
+}
+
 # --- pages -------------------------------------------------------------------
 # Each README subsection lands on exactly one page. "## Quick start" and
 # "## Options" both nest subsections that belong elsewhere, so they are pulled
@@ -240,6 +255,9 @@ render() {
 
 {
   page_open "Features - k9s-lite" "Features" features
+  # the pitch first, lifted from the landing page (already HTML, so it skips
+  # render), then the reference material from the README
+  featurelist
   {
     echo "### Options and environment variables"
     section "## Options" own
