@@ -143,15 +143,22 @@ render() {
     # fenced code, possibly indented inside a list item. The closing fence must
     # match the opening one, so remember whether we opened from inside a list
     # and keep the <li> open across the block.
+    #
+    # <pre> preserves whitespace, so the block is buffered and emitted as one
+    # line: a newline straight after <code> would render as a blank first row.
     /^[ \t]*```/ {
-      if (incode) { print "</code></pre>"; incode = 0; next }
+      if (incode) { print "<pre><code>" codebuf "</code></pre>"; incode = 0; next }
       closep(); closetable()
       if (!inlist) closelist()
-      print "<pre><code>"
+      codebuf = ""
       incode = 1
       next
     }
-    incode { line = $0; sub(/^  /, "", line); print esc(line); next }
+    incode {
+      line = $0; sub(/^  /, "", line)
+      codebuf = (codebuf == "" ? esc(line) : codebuf "\n" esc(line))
+      next
+    }
 
     # headings (### and deeper become h3; ## is the page title, already emitted)
     /^#+ / {
@@ -213,7 +220,7 @@ render() {
       print inline($0)
     }
 
-    END { if (incode) print "</code></pre>"; closeall() }
+    END { if (incode) print "<pre><code>" codebuf "</code></pre>"; closeall() }
   '
 }
 

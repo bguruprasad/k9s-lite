@@ -22,10 +22,8 @@ Grab the single-file build from the <a href="https://github.com/bguruprasad/k9s-
 that one script is the entire program. Pin a specific version (recommended,
 especially where you need to know exactly what you're running):
 </p>
-<pre><code>
-curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.13.1/k9s-lite.dist.sh
-bash k9s-lite.dist.sh -n my-namespace
-</code></pre>
+<pre><code>curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.13.1/k9s-lite.dist.sh
+bash k9s-lite.dist.sh -n my-namespace</code></pre>
 <p>
 To always pull the newest release instead, use
 <code>releases/latest/download/k9s-lite.dist.sh</code> (note GitHub's path shapes:
@@ -41,9 +39,7 @@ Alternatives, in order of least friction:
  <code>k9s-lite.dist.sh</code> from the release assets, then <code>bash k9s-lite.dist.sh</code>.
 </li>
 <li>On Windows, PowerShell <strong>does</strong> use the system proxy:
-<pre><code>
-Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download/v0.13.1/k9s-lite.dist.sh -OutFile k9s-lite.dist.sh
-</code></pre>
+<pre><code>Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download/v0.13.1/k9s-lite.dist.sh -OutFile k9s-lite.dist.sh</code></pre>
 </li>
 <li>Or tell curl about your proxy explicitly:
  <code>curl -x http://your-proxy:8080 -LO &lt;url&gt;</code> (or set <code>https_proxy</code>).
@@ -52,10 +48,8 @@ Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download
 <p>
 Make it feel like a real command:
 </p>
-<pre><code>
-mkdir -p ~/bin &amp;&amp; mv k9s-lite.dist.sh ~/bin/k9l &amp;&amp; chmod +x ~/bin/k9l
-k9l -n my-namespace
-</code></pre>
+<pre><code>mkdir -p ~/bin &amp;&amp; mv k9s-lite.dist.sh ~/bin/k9l &amp;&amp; chmod +x ~/bin/k9l
+k9l -n my-namespace</code></pre>
 <p>
 No cluster handy? <code>K9L_DEMO=1 k9l</code> runs on built-in demo data.
 </p>
@@ -72,9 +66,7 @@ No cluster handy? <code>K9L_DEMO=1 k9l</code> runs on built-in demo data.
 <p>
 The single-file build can update itself in place:
 </p>
-<pre><code>
-k9l --update        # update to the latest release, if you're not already on it
-</code></pre>
+<pre><code>k9l --update        # update to the latest release, if you're not already on it</code></pre>
 <p>
 It prints your current version, then checks the latest release tag *before*
 downloading anything. If you are already on the latest version it says so and

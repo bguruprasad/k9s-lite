@@ -149,13 +149,11 @@ with <code>k9s-lite.sh</code> (repo checkout) and <code>k9s-lite.dist.sh</code> 
 Put your defaults in <code>~/.k9l/config</code> so you don't retype them - plain
 <code>key=value</code> lines, <code>#</code> comments allowed, parsed (never executed as code):
 </p>
-<pre><code>
-# ~/.k9l/config
+<pre><code># ~/.k9l/config
 kubectl=oc          # OpenShift shop
 namespace=my-team   # where I always start
 refresh=5           # corporate VPN is slow
-no_update_check=1   # air-gapped site: never phone home
-</code></pre>
+no_update_check=1   # air-gapped site: never phone home</code></pre>
 <p>
 Recognized keys: <code>refresh</code>, <code>namespace</code>, <code>kubectl</code>, <code>ascii</code>, <code>no_update_check</code>.
 Precedence: CLI flag &gt; environment variable &gt; config file &gt; built-in default.
