@@ -347,8 +347,16 @@ section.features { margin: 3.5rem 0; }
   margin: 1.5rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  /* Two columns, so the ten features fill five even rows with no orphan on
+     the last one. auto-fit gave three columns on the wide landing page and
+     stranded a single item, so the count is fixed rather than fluid; the
+     media query below drops it to one column when two no longer fit. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 1.5rem 2rem;
+}
+
+@media (max-width: 34rem) {
+  .featurelist { grid-template-columns: 1fr; }
 }
 
 .featurelist li { margin: 0; }
