@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commands - k9s-lite</title>
+<link rel="stylesheet" href="k9l.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="docnav">
+  <a class="brand" href="./">k9s-lite</a>
+  <a href="install.html">Installation</a>
+  <a href="commands.html" class="active">Commands</a>
+  <a href="features.html">Features</a>
+  <a href="https://github.com/bguruprasad/k9s-lite">GitHub</a>
+</nav>
+<main class="doc">
+<h1>Commands</h1>
+<p>
+Press <code>?</code> inside the app for this list, always up to date.
+</p>
+<h2>Navigate</h2>
+<div class="tablewrap"><table><thead><tr>
+<th>Key</th>
+<th>Action</th>
+</tr></thead><tbody>
+<tr>
+<td><code>j</code>/<code>k</code>, arrows, mouse wheel</td>
+<td>move cursor</td>
+</tr>
+<tr>
+<td><code>g</code> / <code>G</code>, PgUp / PgDn</td>
+<td>top / bottom / page</td>
+</tr>
+<tr>
+<td><code>:</code></td>
+<td>command mode - switch resource: <code>:po</code> <code>:svc</code> <code>:deploy</code> <code>:sts</code> <code>:cm</code> <code>:secret</code> <code>:events</code> <code>:routes</code> … any kind or kubectl shortname</td>
+</tr>
+<tr>
+<td><code>a</code></td>
+<td>resource browser - pick from every kind the cluster supports (CRDs included)</td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>filter rows (case-insensitive); <code>Esc</code> clears</td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>namespace picker (typed entry if listing is Forbidden)</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>context picker (switches kubeconfig current-context)</td>
+</tr>
+<tr>
+<td><code>o</code> / <code>O</code></td>
+<td>cycle sort column / flip direction - <code>^</code>/<code>v</code> marks the sorted header; numeric columns sort numerically</td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td>toggle all-namespaces (needs cluster-wide list RBAC)</td>
+</tr>
+<tr>
+<td><code>?</code> / <code>r</code> / <code>q</code></td>
+<td>help / refresh now / quit</td>
+</tr>
+</tbody></table></div>
+<h2>Inspect</h2>
+<div class="tablewrap"><table><thead><tr>
+<th>Key</th>
+<th>Action</th>
+</tr></thead><tbody>
+<tr>
+<td><code>Enter</code></td>
+<td>describe rendered inside the box - colorized, scrollable; <code>Esc</code> back</td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>describe (plain, in pager)</td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td>YAML (pager)</td>
+</tr>
+<tr>
+<td><code>v</code></td>
+<td>events for the selected object, oldest→newest</td>
+</tr>
+<tr>
+<td><code>l</code></td>
+<td>logs rendered inside the box (tail 500) - <code>f</code> toggles live follow, <code>r</code> reloads, <code>w</code> toggles word-wrap, <code>Esc</code> back</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>previous-container logs (crash loops)</td>
+</tr>
+<tr>
+<td><code>u</code></td>
+<td>route URL (OpenShift <code>:routes</code>) - shows <code>https://host/path</code>, copies to clipboard</td>
+</tr>
+</tbody></table></div>
+<h2>Operate</h2>
+<div class="tablewrap"><table><thead><tr>
+<th>Key</th>
+<th>Action</th>
+</tr></thead><tbody>
+<tr>
+<td><code>s</code></td>
+<td>shell into pod (bash if present, else sh)</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td><code>kubectl edit</code></td>
+</tr>
+<tr>
+<td><code>Ctrl-D</code></td>
+<td>delete (asks for confirmation)</td>
+</tr>
+</tbody></table></div>
+</main>
+<footer>
+  <p>Generated from README.md - do not edit these pages by hand.</p>
+  <p>
+    <a href="https://github.com/bguruprasad/k9s-lite">README</a> &middot;
+    <a href="https://github.com/bguruprasad/k9s-lite/releases">Releases</a> &middot;
+    <a href="https://github.com/bguruprasad/k9s-lite/blob/main/LICENSE">MIT License</a>
+  </p>
+</footer>
+</div>
+</body>
+</html>

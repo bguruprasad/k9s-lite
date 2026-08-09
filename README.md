@@ -10,6 +10,8 @@
 
 # k9s-lite
 
+**[Try it in your browser](https://bguruprasad.github.io/k9s-lite/)** - an interactive demo, no install needed.
+
 A [k9s](https://k9scli.io/)-style terminal UI for Kubernetes in **pure Bash + kubectl**.
 No Go binary, no tview/tcell, no jq - nothing to install. Built for locked-down
 environments (corporate Windows machines with only Git Bash, jump hosts, minimal

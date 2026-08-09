@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Features - k9s-lite</title>
+<link rel="stylesheet" href="k9l.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="docnav">
+  <a class="brand" href="./">k9s-lite</a>
+  <a href="install.html">Installation</a>
+  <a href="commands.html">Commands</a>
+  <a href="features.html" class="active">Features</a>
+  <a href="https://github.com/bguruprasad/k9s-lite">GitHub</a>
+</nav>
+<main class="doc">
+<h1>Features</h1>
+    <ul class="featurelist">
+      <li>
+        <h3>Nothing To Install</h3>
+        <p>One Bash script and the <code>kubectl</code> you already have. No Go
+          binary, no package manager, no admin rights - copy the file onto a
+          jump host and run it.</p>
+      </li>
+      <li>
+        <h3>Works Where You Are Stuck</h3>
+        <p>Built for locked-down corporate machines: Git Bash on Windows,
+          bastion hosts, minimal containers. bash 3.2 and up, including the
+          system bash macOS still ships.</p>
+      </li>
+      <li>
+        <h3>Standard or CRD?</h3>
+        <p>Any kind <code>kubectl</code> knows works in <code>:</code> command
+          mode - pods, services, statefulsets, your own CRDs, OpenShift routes.
+          Discovery is implicit, so nothing needs teaching about your cluster.</p>
+      </li>
+      <li>
+        <h3>RBAC-Friendly By Design</h3>
+        <p>Nothing requires cluster-wide permissions. When listing namespaces is
+          Forbidden you simply type the one you can see, and the view stays
+          locked there until you say otherwise.</p>
+      </li>
+      <li>
+        <h3>OpenShift-Aware</h3>
+        <p>Set <code>K9L_KUBECTL=oc</code> and <code>:routes</code> works,
+          <code>u</code> gives you a route's full TLS-aware URL on your
+          clipboard, and the namespace picker uses RBAC-filtered projects.</p>
+      </li>
+      <li>
+        <h3>Logs Without Leaving</h3>
+        <p>Press <code>l</code> for logs inside the box, <code>f</code> to
+          follow live, <code>w</code> to word-wrap long lines, or pan sideways
+          with the arrows. Follow mode polls on the refresh tick, so there are
+          no background processes to leak.</p>
+      </li>
+      <li>
+        <h3>Spot Trouble Fast</h3>
+        <p>Status colors follow k9s, so crashloops and errors are red on sight.
+          Sort by restart count with <code>o</code>, filter with <code>/</code>,
+          and jump straight into <code>describe</code>, YAML, or events.</p>
+      </li>
+      <li>
+        <h3>Power Users Welcome</h3>
+        <p>Shell into a pod with <code>s</code>, <code>kubectl edit</code> with
+          <code>e</code>, delete with confirmation, browse every kind the
+          cluster supports with <code>a</code>. Interactive commands hand over
+          the real terminal, then restore your view.</p>
+      </li>
+      <li>
+        <h3>Your Terminal, Your Way</h3>
+        <p>Plain <code>+---+</code> borders where Unicode box drawing is not
+          available, a slower refresh for corporate VPNs, noisy columns hidden
+          by default. Put your defaults in <code>~/.k9l/config</code> and stop
+          retyping them.</p>
+      </li>
+      <li>
+        <h3>Updates Itself</h3>
+        <p><code>k9l --update</code> checks the latest release, verifies the
+          download, and replaces itself atomically. A once-a-day background
+          check nudges you when a release lands - and turns off completely for
+          air-gapped sites.</p>
+      </li>
+    </ul>
+<h2>Options and environment variables</h2>
+<p>
+One flag: <code>-n &lt;ns&gt;</code> / <code>--namespace &lt;ns&gt;</code>. The starting namespace resolves as:
+flag → <code>K9L_NAMESPACE</code> (env or config file) → namespace set on your kubeconfig
+context → <code>default</code>. The view stays locked to that one namespace unless you
+explicitly toggle <code>0</code> - by design, since many users only have RBAC access to
+specific namespaces.
+</p>
+<p>
+Environment variables:
+</p>
+<div class="tablewrap"><table><thead><tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+</tr></thead><tbody>
+<tr>
+<td><code>K9L_KUBECTL</code></td>
+<td><code>kubectl</code></td>
+<td>CLI to drive - set <code>oc</code> for OpenShift</td>
+</tr>
+<tr>
+<td><code>K9L_REFRESH</code></td>
+<td><code>2</code></td>
+<td>auto-refresh interval in seconds (raise it on slow VPNs)</td>
+</tr>
+<tr>
+<td><code>K9L_NAMESPACE</code></td>
+<td>unset</td>
+<td>starting namespace (same as <code>-n</code>, lower precedence)</td>
+</tr>
+<tr>
+<td><code>K9L_DEMO</code></td>
+<td>unset</td>
+<td><code>1</code> = built-in demo data, no cluster needed</td>
+</tr>
+<tr>
+<td><code>K9L_ASCII</code></td>
+<td>unset</td>
+<td><code>1</code> = plain <code>+---+</code> borders for terminals without Unicode box drawing</td>
+</tr>
+<tr>
+<td><code>K9L_HIDE_COLUMNS</code></td>
+<td><code>NOMINATED NODE,READINESS GATES</code></td>
+<td>comma-separated header names to hide (kubectl <code>-o wide</code> extras that are almost always <code>&lt;none&gt;</code>); set empty to show everything</td>
+</tr>
+<tr>
+<td><code>K9L_NO_UPDATE_CHECK</code></td>
+<td>unset</td>
+<td><code>1</code> = disable the daily update check entirely (for air-gapped/policy-restricted sites)</td>
+</tr>
+<tr>
+<td><code>K9L_CONFIG</code></td>
+<td><code>~/.k9l/config</code>, else <code>~/.k9s-lite.conf</code></td>
+<td>path to the config file</td>
+</tr>
+</tbody></table></div>
+<p>
+Both forms take the same flags and variables - the examples work identically
+with <code>k9s-lite.sh</code> (repo checkout) and <code>k9s-lite.dist.sh</code> (single file).
+</p>
+<h2>Config file</h2>
+<p>
+Put your defaults in <code>~/.k9l/config</code> so you don't retype them - plain
+<code>key=value</code> lines, <code>#</code> comments allowed, parsed (never executed as code):
+</p>
+<pre><code># ~/.k9l/config
+kubectl=oc          # OpenShift shop
+namespace=my-team   # where I always start
+refresh=5           # corporate VPN is slow
+no_update_check=1   # air-gapped site: never phone home</code></pre>
+<p>
+Recognized keys: <code>refresh</code>, <code>namespace</code>, <code>kubectl</code>, <code>ascii</code>, <code>no_update_check</code>.
+Precedence: CLI flag &gt; environment variable &gt; config file &gt; built-in default.
+The config path is <code>~/.k9l/config</code> if present, otherwise the legacy
+<code>~/.k9s-lite.conf</code> (still honored); override either with <code>K9L_CONFIG</code>.
+</p>
+<h2>Why pure Bash?</h2>
+<ul>
+<li><strong>Zero dependencies</strong> beyond <code>bash</code>, <code>kubectl</code>, and the coreutils that ship
+ with Git Bash / any Linux / macOS. kubectl does all parsing and auth -
+ including corporate SSO/OIDC setups that are painful to reimplement.
+</li>
+<li><strong>RBAC-friendly</strong>: designed for users who can only see specific namespaces.
+ Nothing requires cluster-wide permissions; when listing namespaces is
+ Forbidden, you type the namespace name instead.
+</li>
+<li><strong>OpenShift-aware</strong>: with <code>K9L_KUBECTL=oc</code>, <code>:routes</code> works via API
+ discovery, <code>u</code> on a route row gives you its full URL (TLS-aware, copied
+ to your clipboard), and the namespace picker uses RBAC-filtered <code>projects</code>.
+</li>
+</ul>
+<h2>How it works</h2>
+<p>
+kubectl is the parser: lists are <code>kubectl get -o wide</code>, discovery is implicit
+(any resource kind kubectl knows works in <code>:</code> command mode - CRDs and OpenShift
+routes included), and events are sorted server-side with <code>--sort-by</code>. The UI is
+raw ANSI escapes with a full redraw per tick; the event loop is a single
+<code>read -t &lt;refresh&gt;</code> - the timeout doubles as the polling timer.
+</p>
+<p>
+Logs (<code>l</code>) render inside the box like the Enter describe view; follow mode is
+polling-based - the refresh tick re-fetches the tail and pins the view to the
+bottom, no background processes. Long lines are truncated by default; press
+<code>w</code> to word-wrap them, or leave wrap off and pan with the left/right arrows.
+Interactive actions (exec, edit, pagers)
+suspend the alt screen, hand the real terminal to the child, and restore raw
+mode after. Pager-based views (describe, yaml, previous logs) leave no trace
+in your shell's scrollback; <code>s</code> (exec) and <code>e</code> (edit) deliberately run on the
+normal screen so your session transcript survives.
+</p>
+<p>
+The layout is responsive: on wide terminals table columns stretch to fill the
+screen, the key map right-aligns to the edge, and the ASCII logo appears in the
+header; on narrow screens everything collapses gracefully. Colors follow k9s.
+</p>
+<h2>Windows / Git Bash specifics</h2>
+<ul>
+<li>Interactive kubectl (<code>exec -it</code>, <code>edit</code>) is wrapped with <code>winpty</code>
+ automatically under mintty.
+</li>
+<li>All kubectl output is stripped of <code>\r</code>; the repo enforces LF endings.
+</li>
+<li>Terminal size is polled every tick (mintty doesn't deliver SIGWINCH to bash).
+</li>
+<li>No subshells in the render loop - process forks are expensive under Git Bash.
+</li>
+</ul>
+</main>
+<footer>
+  <p>Generated from README.md - do not edit these pages by hand.</p>
+  <p>
+    <a href="https://github.com/bguruprasad/k9s-lite">README</a> &middot;
+    <a href="https://github.com/bguruprasad/k9s-lite/releases">Releases</a> &middot;
+    <a href="https://github.com/bguruprasad/k9s-lite/blob/main/LICENSE">MIT License</a>
+  </p>
+</footer>
+</div>
+</body>
+</html>

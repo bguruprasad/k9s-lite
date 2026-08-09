@@ -11,7 +11,7 @@ jobs:
     # bundles it, and lint checks aren't OS-specific behavior anyway
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: build single-file dist
         run: bash hack/build-dist.sh
       - name: shellcheck (source + dist artifact)
@@ -33,7 +33,7 @@ jobs:
     # but cap the whole job too in case something else hangs
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: pty smoke test (demo mode)
         run: bash hack/smoke.sh
       - name: build single-file dist

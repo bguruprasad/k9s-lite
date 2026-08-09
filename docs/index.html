@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>k9s-lite - k9s, but lite</title>
+<meta name="description" content="A k9s-style terminal UI for Kubernetes in pure Bash + kubectl. No Go binary, nothing to install.">
+<link rel="stylesheet" href="k9l.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <img class="logo" src="logo.svg" alt="k9l - k9s, but lite">
+    <p class="tagline">A k9s-style terminal UI for Kubernetes in pure Bash + kubectl.<br>
+      No Go binary, no tview/tcell, no jq - nothing to install.</p>
+    <p class="badges">
+      <a href="https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml"><img src="https://github.com/bguruprasad/k9s-lite/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+      <a href="https://github.com/bguruprasad/k9s-lite/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+      <a href="https://github.com/bguruprasad/k9s-lite#requirements"><img src="https://img.shields.io/badge/bash-3.2%2B-green.svg" alt="bash 3.2+"></a>
+    </p>
+    <p class="herolinks">
+      <a href="install.html">Installation</a>
+      <a href="commands.html">Commands</a>
+      <a href="features.html">Features</a>
+      <a href="https://github.com/bguruprasad/k9s-lite">GitHub</a>
+    </p>
+  </header>
+
+  <section id="demo">
+    <pre id="k9l-term" tabindex="0" aria-label="Interactive k9s-lite terminal demo"></pre>
+    <div class="demo-cmd-buttons" aria-label="Try k9s-lite commands">
+      <button type="button" data-keys=":,p,o,Enter">:po</button>
+      <button type="button" data-keys=":,s,v,c,Enter">:svc</button>
+      <button type="button" data-keys=":,d,e,p,l,o,y,Enter">:deploy</button>
+      <button type="button" data-keys="j">j (down)</button>
+      <button type="button" data-keys="k">k (up)</button>
+      <button type="button" data-keys="/,c,r,a,s,h,l,o,o,p,Enter">Find crash-looping pod</button>
+      <button type="button" data-keys="Enter">View details</button>
+      <button type="button" data-keys="l">View logs</button>
+      <button type="button" data-keys="o">Sort by restarts</button>
+      <button type="button" data-keys="Escape">Back / clear filter</button>
+    </div>
+    <div class="demo-controls">
+      <button id="k9l-replay" type="button">Replay</button>
+    </div>
+    <p class="demo-hint">Click a button above, or click the terminal and try <kbd>j</kbd>/<kbd>k</kbd>, <kbd>/</kbd> to filter, <kbd>o</kbd> to sort, or <kbd>:svc</kbd> to switch resources.</p>
+  </section>
+
+  <!-- FEATURES:START - hack/build-docs.sh lifts this block into features.html.
+       Edit it here only; the docs page is generated. -->
+  <section class="features">
+    <h2>Features</h2>
+    <ul class="featurelist">
+      <li>
+        <h3>Nothing To Install</h3>
+        <p>One Bash script and the <code>kubectl</code> you already have. No Go
+          binary, no package manager, no admin rights - copy the file onto a
+          jump host and run it.</p>
+      </li>
+      <li>
+        <h3>Works Where You Are Stuck</h3>
+        <p>Built for locked-down corporate machines: Git Bash on Windows,
+          bastion hosts, minimal containers. bash 3.2 and up, including the
+          system bash macOS still ships.</p>
+      </li>
+      <li>
+        <h3>Standard or CRD?</h3>
+        <p>Any kind <code>kubectl</code> knows works in <code>:</code> command
+          mode - pods, services, statefulsets, your own CRDs, OpenShift routes.
+          Discovery is implicit, so nothing needs teaching about your cluster.</p>
+      </li>
+      <li>
+        <h3>RBAC-Friendly By Design</h3>
+        <p>Nothing requires cluster-wide permissions. When listing namespaces is
+          Forbidden you simply type the one you can see, and the view stays
+          locked there until you say otherwise.</p>
+      </li>
+      <li>
+        <h3>OpenShift-Aware</h3>
+        <p>Set <code>K9L_KUBECTL=oc</code> and <code>:routes</code> works,
+          <code>u</code> gives you a route's full TLS-aware URL on your
+          clipboard, and the namespace picker uses RBAC-filtered projects.</p>
+      </li>
+      <li>
+        <h3>Logs Without Leaving</h3>
+        <p>Press <code>l</code> for logs inside the box, <code>f</code> to
+          follow live, <code>w</code> to word-wrap long lines, or pan sideways
+          with the arrows. Follow mode polls on the refresh tick, so there are
+          no background processes to leak.</p>
+      </li>
+      <li>
+        <h3>Spot Trouble Fast</h3>
+        <p>Status colors follow k9s, so crashloops and errors are red on sight.
+          Sort by restart count with <code>o</code>, filter with <code>/</code>,
+          and jump straight into <code>describe</code>, YAML, or events.</p>
+      </li>
+      <li>
+        <h3>Power Users Welcome</h3>
+        <p>Shell into a pod with <code>s</code>, <code>kubectl edit</code> with
+          <code>e</code>, delete with confirmation, browse every kind the
+          cluster supports with <code>a</code>. Interactive commands hand over
+          the real terminal, then restore your view.</p>
+      </li>
+      <li>
+        <h3>Your Terminal, Your Way</h3>
+        <p>Plain <code>+---+</code> borders where Unicode box drawing is not
+          available, a slower refresh for corporate VPNs, noisy columns hidden
+          by default. Put your defaults in <code>~/.k9l/config</code> and stop
+          retyping them.</p>
+      </li>
+      <li>
+        <h3>Updates Itself</h3>
+        <p><code>k9l --update</code> checks the latest release, verifies the
+          download, and replaces itself atomically. A once-a-day background
+          check nudges you when a release lands - and turns off completely for
+          air-gapped sites.</p>
+      </li>
+    </ul>
+  </section>
+  <!-- FEATURES:END -->
+
+  <section class="install">
+    <h2>Quick start</h2>
+    <p>Grab the single-file build from the
+      <a href="https://github.com/bguruprasad/k9s-lite/releases">releases page</a>
+      and run it - that one script is the entire program.</p>
+    <pre class="cmd"><button class="copy" type="button" data-copy-target="install-cmd">Copy</button><code id="install-cmd">curl -LO https://github.com/bguruprasad/k9s-lite/releases/download/v0.13.1/k9s-lite.dist.sh
+bash k9s-lite.dist.sh -n my-namespace</code></pre>
+    <p>No cluster handy? <code>K9L_DEMO=1 k9l</code> runs on built-in demo data -
+      the same data this page's terminal is based on.</p>
+
+    <details class="fallback">
+      <summary>curl blocked?</summary>
+      <p>Corporate proxies often let browsers through but not CLI tools. In order
+        of least friction:</p>
+      <ul>
+        <li>Open the <a href="https://github.com/bguruprasad/k9s-lite/releases">releases page</a>
+          in your browser and download <code>k9s-lite.dist.sh</code> directly.</li>
+        <li>On Windows, PowerShell uses the system proxy:
+          <pre class="cmd"><code>Invoke-WebRequest -Uri https://github.com/bguruprasad/k9s-lite/releases/download/v0.13.1/k9s-lite.dist.sh -OutFile k9s-lite.dist.sh</code></pre>
+        </li>
+        <li>Or tell curl about your proxy explicitly:
+          <code>curl -x http://your-proxy:8080 -LO &lt;url&gt;</code></li>
+      </ul>
+    </details>
+  </section>
+
+  <footer>
+    <p>
+      <a href="https://github.com/bguruprasad/k9s-lite">README</a> ·
+      <a href="https://github.com/bguruprasad/k9s-lite/releases">Releases</a> ·
+      <a href="https://github.com/bguruprasad/k9s-lite/blob/main/LICENSE">MIT License</a>
+    </p>
+  </footer>
+
+</div>
+<script defer src="k9l-demo.js"></script>
+</body>
+</html>

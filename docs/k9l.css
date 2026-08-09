@@ -1,0 +1,383 @@
+:root {
+  --bg: #171a26;
+  --bg-alt: #22263a;
+  --fg: #f8f8f2;
+  --border: #2c3040;
+  --accent-cyan: #8be9fd;
+  --accent-yellow: #f1fa8c;
+  --accent-pink: #ff79c6;
+  --accent-green: #50fa7b;
+  --accent-red: #ff5555;
+  --accent-gray: #6272a4;
+  --mono: Menlo, Consolas, "Liberation Mono", monospace;
+  /* rendered width of the terminal's 100-column grid at its font size; the
+     demo's control rows use it so they share the box's edges */
+  --term-w: 824px;
+
+  /* ANSI palette for the simulated terminal only. These mirror the SGR codes
+     the real tool emits, NOT the page's brand accents - the terminal should
+     look like a terminal. Values are the xterm defaults for each code.
+       C_LBL  \e[33m   standard yellow (mustard, not bright yellow)
+       C_VAL  \e[1;97m bold bright white
+       C_KEY  \e[94m   bright blue
+       C_ACT  \e[90m   bright black (gray)
+     Row status colors (lib/table.sh:111-119) use the STANDARD tier, not the
+     bright one: \e[31m red, \e[32m green, \e[33m yellow (same as C_LBL),
+     \e[90m gray. See k9s-lite.sh:72-76
+
+     Values follow a modern terminal's standard tier rather than xterm's
+     1990s defaults - xterm's #cd0000 / #00cd00 are too dim to read on this
+     background, and no terminal anyone actually runs k9s-lite in still
+     uses them. The hues match; the luminance is what a real user sees. */
+  --ansi-yellow: #b58900;
+  --ansi-white: #ffffff;
+  --ansi-blue: #6a6aff;
+  --ansi-gray: #8a8a8a;
+  --ansi-red: #e05561;
+  --ansi-green: #4db56a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f6f8;
+    --bg-alt: #ffffff;
+    --fg: #171a26;
+    --border: #d7d9e2;
+    --accent-gray: #6272a4;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.hero {
+  text-align: center;
+  padding: 2rem 0 0;
+}
+
+.hero img.logo {
+  width: 280px;
+  max-width: 80%;
+  height: auto;
+}
+
+.hero p.tagline {
+  font-size: 1.1rem;
+  color: var(--accent-gray);
+  margin: 0.5rem 0 1rem;
+}
+
+.badges img { margin: 0 0.15rem; }
+
+#demo {
+  margin: 1.25rem 0 2rem;
+}
+
+#k9l-term {
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #0d0e14;
+  color: #eee;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  white-space: pre;
+  outline: none;
+}
+
+#k9l-term:focus {
+  border-color: var(--accent-cyan);
+}
+
+.demo-cmd-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  /* centred within the row's width, so a wrapped second row sits balanced
+     under the first rather than hugging either edge */
+  justify-content: center;
+  gap: 0.5rem;
+  /* Cap the row at the terminal box's width so it wraps inside the box's
+     edges rather than spanning the page. The terminal is 100 columns at
+     0.82rem in the same monospace face, which lands at ~824px; --term-w
+     keeps that number in one place. */
+  width: var(--term-w);
+  max-width: 100%;
+  margin: 0.5rem auto 0;
+}
+
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.5rem auto 0;
+  width: max-content;
+  max-width: 100%;
+}
+
+.demo-controls button,
+.demo-cmd-buttons button {
+  font-family: var(--mono);
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.demo-controls button:hover,
+.demo-cmd-buttons button:hover { border-color: var(--accent-cyan); }
+
+.demo-cmd-buttons button {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.demo-hint {
+  color: var(--accent-gray);
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+section.install {
+  margin: 3rem 0;
+}
+
+section.install h2 { margin-bottom: 0.5rem; }
+
+pre.cmd {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  position: relative;
+}
+
+pre.cmd button.copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+details.fallback {
+  margin-top: 1rem;
+  color: var(--accent-gray);
+}
+
+details.fallback summary {
+  cursor: pointer;
+  color: var(--fg);
+}
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--accent-gray);
+  font-size: 0.85rem;
+}
+
+footer a { color: var(--accent-cyan); }
+
+@media (max-width: 600px) {
+  #k9l-term { font-size: 0.62rem; }
+}
+
+/* Terminal content mirrors the real tool's SGR codes (k9s-lite.sh:72-76,
+   lib/table.sh:111-119), so it uses the --ansi-* palette, not the page's
+   brand accents. The logo takes C_LBL and the tagline C_ACT, per
+   add_info_line and build_info (k9s-lite.sh:126,159). */
+#k9l-term b { font-weight: 700; }
+#k9l-term .hdr-lbl { color: var(--ansi-yellow); }
+#k9l-term .hdr-val { color: var(--ansi-white); font-weight: 700; }
+#k9l-term .hdr-key { color: var(--ansi-blue); }
+#k9l-term .hdr-act { color: var(--ansi-gray); }
+#k9l-term .hdr-logo { color: var(--ansi-yellow); }
+#k9l-term .hdr-tag { color: var(--ansi-gray); }
+#k9l-term .st-red { color: var(--ansi-red); }
+#k9l-term .st-yellow { color: var(--ansi-yellow); }
+#k9l-term .st-green { color: var(--ansi-green); }
+#k9l-term .st-gray { color: var(--ansi-gray); }
+#k9l-term .row-cursor { background: #f8f8f2; color: #171a26; }
+
+/* --- doc pages (install/commands/features, generated by hack/build-docs.sh) - */
+
+.docnav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.docnav a {
+  color: var(--accent-gray);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.docnav a:hover { color: var(--fg); }
+.docnav a.active { color: var(--accent-cyan); }
+
+.docnav .brand {
+  color: var(--fg);
+  font-weight: 700;
+  margin-right: auto;
+  font-size: 1rem;
+}
+
+.doc { max-width: 46rem; }
+
+.doc h1 {
+  font-size: 1.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.doc h2 {
+  font-size: 1.15rem;
+  margin: 2.5rem 0 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  color: var(--accent-cyan);
+}
+
+.doc p { margin: 0 0 1rem; }
+.doc ul { margin: 0 0 1rem; padding-left: 1.25rem; }
+.doc li { margin-bottom: 0.4rem; }
+
+.doc code {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.88em;
+}
+
+.doc pre {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0 0 1rem;
+}
+
+.doc pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.tablewrap { overflow-x: auto; margin: 0 0 1.5rem; }
+
+.doc table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.doc th, .doc td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.doc th {
+  color: var(--accent-yellow);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.doc td:first-child { white-space: nowrap; }
+
+.herolinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 1.25rem 0 0;
+}
+
+.herolinks a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.herolinks a:hover { text-decoration: underline; }
+
+/* --- feature list (landing page pitch, lifted onto features.html) --------- */
+
+section.features { margin: 3.5rem 0; }
+
+.featurelist {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  /* Two columns, so the ten features fill five even rows with no orphan on
+     the last one. auto-fit gave three columns on the wide landing page and
+     stranded a single item, so the count is fixed rather than fluid; the
+     media query below drops it to one column when two no longer fit. */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem 2rem;
+}
+
+@media (max-width: 34rem) {
+  .featurelist { grid-template-columns: 1fr; }
+}
+
+.featurelist li { margin: 0; }
+
+.featurelist h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.98rem;
+  color: var(--accent-cyan);
+}
+
+.featurelist p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--accent-gray);
+  line-height: 1.55;
+}
+
+.featurelist code {
+  color: var(--fg);
+  font-size: 0.9em;
+}
+
+/* on the docs page the list sits above the reference sections */
+.doc .featurelist { margin-bottom: 2.5rem; }
