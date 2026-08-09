@@ -109,12 +109,9 @@ body {
 .demo-cmd-buttons {
   display: flex;
   flex-wrap: wrap;
-  /* left-aligned so a wrapped second row continues under the first rather
-     than floating to the right edge. max-content on a wrapping flex box
-     resolves to the full unwrapped row, which is wider than the terminal -
-     fit-content caps it at the available width so the block lines up with
-     the box above it. */
-  justify-content: flex-start;
+  /* centred within the row's width, so a wrapped second row sits balanced
+     under the first rather than hugging either edge */
+  justify-content: center;
   gap: 0.5rem;
   /* Cap the row at the terminal box's width so it wraps inside the box's
      edges rather than spanning the page. The terminal is 100 columns at
@@ -128,7 +125,7 @@ body {
 .demo-controls {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0.5rem;
   margin: 0.5rem auto 0;
   width: max-content;
