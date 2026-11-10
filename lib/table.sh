@@ -147,7 +147,8 @@ row_color_table() {
   table_cell "$1" "$READY_COL"
   ready=${CELL%% *}
   [[ $ready == ?*/?* ]] || return 0
-  [[ ${ready%%/*} != "${ready#*/}" ]] && ROW_SGR=$'\e[33m'
+  # first vs last segment (## not #): a malformed "1/1/1" must not read as 1 vs "1/1"
+  [[ ${ready%%/*} != "${ready##*/}" ]] && ROW_SGR=$'\e[33m'
   return 0
 }
 

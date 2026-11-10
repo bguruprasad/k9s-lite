@@ -223,6 +223,7 @@ check_row_ready_color() {
       row_color_table "notready   0/1     Running   0          1h"; name
       row_color_table "multi      1/2     Running   0          1h"; name
       row_color_table "stuck      0/1     Pending   0          1h"; name
+      row_color_table "odd        1/1/1   Running   0          1h"; name
       TABLE_HEADER="NAMESPACE   NAME       READY   STATUS    RESTARTS   AGE"
       table_ready_col
       row_color_table "demo        notready   0/1     Running   0          1h"; name
@@ -233,7 +234,7 @@ check_row_ready_color() {
     '
   )
   case "$out" in
-    "green yellow yellow yellow yellow green ") echo "ok:   Running-but-not-ready rows are yellow; ready rows and jobs stay green" ;;
+    "green yellow yellow yellow green yellow green ") echo "ok:   Running-but-not-ready rows are yellow; ready rows and jobs stay green" ;;
     __NOFUNC__)  echo "FAIL: table_ready_col not found in lib/table.sh"; fail=1 ;;
     *)           echo "FAIL: row ready color (got: $out)"; fail=1 ;;
   esac
