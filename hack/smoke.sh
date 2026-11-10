@@ -205,6 +205,41 @@ check_logs_hscroll() {
 }
 check_logs_hscroll
 
+# Row colors: a Running pod whose READY is x/y with x != y (failing readiness
+# probe) must render yellow, not the healthy green. READY is located by header
+# name, so a Running Job (COMPLETIONS 0/1, no READY column) stays green.
+check_row_ready_color() {
+  local out
+  out=$(
+    /bin/bash -c '
+      source lib/table.sh >/dev/null 2>&1
+      declare -f table_ready_col >/dev/null || { echo "__NOFUNC__"; exit 0; }
+      G=$'"'"'\e[32m'"'"'; Y=$'"'"'\e[33m'"'"'
+      name() { case "$ROW_SGR" in "$G") r="${r}green " ;; "$Y") r="${r}yellow " ;; *) r="${r}other " ;; esac; }
+      r=""
+      TABLE_HEADER="NAME       READY   STATUS    RESTARTS   AGE"
+      table_ready_col
+      row_color_table "web-1      1/1     Running   0          1h"; name
+      row_color_table "notready   0/1     Running   0          1h"; name
+      row_color_table "multi      1/2     Running   0          1h"; name
+      row_color_table "stuck      0/1     Pending   0          1h"; name
+      TABLE_HEADER="NAMESPACE   NAME       READY   STATUS    RESTARTS   AGE"
+      table_ready_col
+      row_color_table "demo        notready   0/1     Running   0          1h"; name
+      TABLE_HEADER="NAME      STATUS    COMPLETIONS   DURATION   AGE"
+      table_ready_col
+      row_color_table "migrate   Running   0/1           5s         5s"; name
+      printf "%s" "$r"
+    '
+  )
+  case "$out" in
+    "green yellow yellow yellow yellow green ") echo "ok:   Running-but-not-ready rows are yellow; ready rows and jobs stay green" ;;
+    __NOFUNC__)  echo "FAIL: table_ready_col not found in lib/table.sh"; fail=1 ;;
+    *)           echo "FAIL: row ready color (got: $out)"; fail=1 ;;
+  esac
+}
+check_row_ready_color
+
 # Update mechanism: version compare, once-a-day cache freshness, and dist
 # detection - all pure logic, unit-checked directly (no network, no pty). The
 # background fetch and self-replace are not exercised here (they need network /
