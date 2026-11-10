@@ -118,6 +118,40 @@ row_color() {
   esac
 }
 
+# table_ready_col - 0-based index of the READY column in TABLE_HEADER into
+# READY_COL (-1 when absent), leaving COL_STARTS set for row_color_table.
+# Located by header NAME, not by spotting an "x/y" token: a Job's COMPLETIONS
+# "0/1" is progress, not readiness. Called per frame on the (reflowed) header;
+# pure string ops, no forks.
+READY_COL=-1
+table_ready_col() {
+  READY_COL=-1
+  [[ -z $TABLE_HEADER ]] && return 0
+  table_columns
+  local j
+  for (( j = 0; j < COL_N; j++ )); do
+    table_cell "$TABLE_HEADER" "$j"
+    if [[ $CELL == READY ]]; then READY_COL=$j; return 0; fi
+  done
+  return 0
+}
+
+# row_color_table <row> - row_color for table rows, plus readiness: a Running
+# row whose READY is x/y with x != y (e.g. a failing readiness probe) is yellow,
+# not the healthy green. Needs table_ready_col run for the current header.
+row_color_table() {
+  row_color "$1"
+  local green=$'\e[32m' ready
+  [[ $ROW_SGR == "$green" ]] || return 0
+  (( READY_COL >= 0 )) || return 0
+  table_cell "$1" "$READY_COL"
+  ready=${CELL%% *}
+  [[ $ready == ?*/?* ]] || return 0
+  # first vs last segment (## not #): a malformed "1/1/1" must not read as 1 vs "1/1"
+  [[ ${ready%%/*} != "${ready##*/}" ]] && ROW_SGR=$'\e[33m'
+  return 0
+}
+
 # table_columns - detect column start positions from TABLE_HEADER into
 # COL_STARTS/COL_N (kubectl's tabwriter aligns rows identically to the
 # header; a non-space preceded by >=2 spaces starts a column).
@@ -430,8 +464,10 @@ table_draw() {
   # column header (inside the box) - marker is a display-only overlay, rebuilt
   # each frame on the pristine header so resize/error ticks never desync it.
   # Skipped in detail views (no columns) so the body starts right under the title.
+  READY_COL=-1
   if (( head_lines )); then
     table_mark_sort
+    [[ -z $DETAIL_VIEW ]] && table_ready_col   # rows below color by readiness
     printf -v line '%-*.*s' "$inner" "$inner" " $MARKED_HEADER"
     buf+="${BOX_V}"$'\e[1m'"$line"$'\e[22m'"${BOX_V}"$'\e[K\r\n'
   fi
@@ -472,7 +508,7 @@ table_draw() {
         printf -v line '%-*.*s' "$inner" "$inner" ">${row}"
         buf+="${BOX_V}"$'\e[107;30m'"$line"$'\e[0m'"${BOX_V}"
       else
-        row_color "$row"
+        row_color_table "$row"
         printf -v line '%-*.*s' "$inner" "$inner" " ${row}"
         buf+="${BOX_V}${ROW_SGR}${line}"$'\e[0m'"${BOX_V}"
       fi

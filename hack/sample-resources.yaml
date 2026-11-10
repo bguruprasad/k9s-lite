@@ -1,6 +1,7 @@
 # Sample resources for testing k9s-lite against a local cluster (kind).
 # Gives every view something to show: healthy pods, a crashing pod, a pending
-# pod, completed jobs, services, configmaps, secrets, a cronjob.
+# pod, a running-but-not-ready pod, completed jobs, services, configmaps,
+# secrets, a cronjob.
 #
 #   kubectl apply -f hack/sample-resources.yaml
 apiVersion: v1
@@ -89,6 +90,23 @@ spec:
     - name: crasher
       image: busybox
       command: ["sh", "-c", "echo boom; exit 1"]
+---
+# Running but never Ready (0/1): readiness probe always fails. Must render
+# yellow, not the healthy-pod green.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: notready
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: busybox
+      command: ["sleep", "infinity"]
+      readinessProbe:
+        exec:
+          command: ["false"]
+        periodSeconds: 3
 ---
 # Pending forever: requests more memory than the node has
 apiVersion: v1
